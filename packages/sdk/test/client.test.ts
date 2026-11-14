@@ -43,6 +43,27 @@ describe("ForeshadowClient", () => {
     expect(err.retryable).toBe(false);
   });
 
+  it("reads the gateway's error codes; a used-up quota isn't retryable", async () => {
+    const body = { error: "quota_exceeded", message: "Daily request limit reached.", resets_at: "2026-11-15T00:00:00Z" };
+    const { c } = client(() => jsonResponse(body, 429));
+    const err = await c.runs().catch((e) => e);
+    expect(err).toBeInstanceOf(ForeshadowError);
+    expect(err.code).toBe("quota_exceeded");
+    expect(err.detail).toBe("Daily request limit reached.");
+    expect(err.resetsAt?.toISOString()).toBe("2026-11-15T00:00:00.000Z");
+    expect(err.retryable).toBe(false);
+
+    const limited = await client(() => jsonResponse({ error: "rate_limited" }, 429)).c.runs().catch((e) => e);
+    expect(limited.code).toBe("rate_limited");
+    expect(limited.retryable).toBe(true);
+
+    const origin = await client(() => jsonResponse({ error: "origin_not_allowed", message: "Not here." }, 403))
+      .c.runs()
+      .catch((e) => e);
+    expect(origin.code).toBe("origin_not_allowed");
+    expect(origin.retryable).toBe(false);
+  });
+
   it("reports network failures as status 0", async () => {
     const fetch = vi.fn(async () => {
       throw new TypeError("fetch failed");

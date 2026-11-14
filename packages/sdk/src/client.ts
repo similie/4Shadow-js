@@ -164,17 +164,26 @@ export class ForeshadowClient {
     }
     if (!res.ok) {
       let detail: string | undefined;
+      const extra: { code?: string; resetsAt?: Date } = {};
       try {
-        const err = (await res.json()) as { detail?: unknown; message?: unknown; error?: unknown };
+        const err = (await res.json()) as { detail?: unknown; message?: unknown; error?: unknown; resets_at?: unknown };
         const d = err.detail ?? err.message;
         const text = typeof d === "string" ? d : Array.isArray(d) ? d.join("; ") : d !== undefined ? JSON.stringify(d) : undefined;
-        // The alerts API answers {error, detail}: "Invalid alert: name is required; ..."
         const summary = typeof err.error === "string" ? err.error : undefined;
-        detail = summary && text ? `${summary}: ${text}` : (text ?? summary);
+        if (summary && /^[a-z][a-z0-9_]*$/.test(summary)) {
+          // The gateway answers {error: "quota_exceeded", message, resets_at}.
+          extra.code = summary;
+          detail = text ?? summary;
+          const reset = typeof err.resets_at === "string" ? new Date(err.resets_at) : undefined;
+          if (reset && !Number.isNaN(reset.getTime())) extra.resetsAt = reset;
+        } else {
+          // The alerts API answers {error, detail}: "Invalid alert: name is required; ..."
+          detail = summary && text ? `${summary}: ${text}` : (text ?? summary);
+        }
       } catch {
         /* not JSON */
       }
-      throw new ForeshadowError(`${res.status} ${detail ?? res.statusText}`, res.status, url, detail);
+      throw new ForeshadowError(`${res.status} ${detail ?? res.statusText}`, res.status, url, detail, extra);
     }
     return res;
   }

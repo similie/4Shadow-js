@@ -597,7 +597,13 @@ export class WeatherMap {
   destroy(): void {
     this.playing = false;
     this.isobarJobs.dispose();
+    // MapLibre's remove() deletes the view from the URL hash. Put it back when the page is still the
+    // map's own, so a remount (or a dev hot reload) and the history entry keep their place.
+    const { pathname, search, hash } = location;
     this.map.remove();
+    if (hash && !location.hash && location.pathname === pathname && location.search === search) {
+      history.replaceState(history.state, "", hash);
+    }
   }
 }
 

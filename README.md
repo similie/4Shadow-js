@@ -16,7 +16,7 @@ npm install
 npm test           # SDK unit tests
 npm run typecheck  # every workspace
 npm run build      # SDK → packages/sdk/dist
-npm run lab        # map lab on http://localhost:5173 (needs a 4Shadow API; see its README)
+npm run lab        # map lab on http://localhost:5181 (needs a 4Shadow API; see its README)
 ```
 
 To run the SDK tests against a real server: `FORESHADOW_TEST_URL=http://localhost:5003 npm test`.

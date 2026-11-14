@@ -20,7 +20,7 @@ You need a 4Shadow API key: get one at [4shadow.io](https://4shadow.io). Copy `.
 
 ```sh
 npm install
-npm run lab        # http://localhost:5173
+npm run lab        # http://localhost:5181
 ```
 
 The browser talks only to the lab's own server, which adds your key and passes the request on to `https://api.4shadow.io`. The key never reaches the browser.

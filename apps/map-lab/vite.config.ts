@@ -33,7 +33,8 @@ export default defineConfig({
   // MapLibre's worker is an ES module (imported with ?worker&url in weather-map.ts).
   worker: { format: "es" },
   server: {
-    port: 5173,
+    port: 5181,
+    strictPort: true, // 5173 belongs to Experts dev; the tunnel needs a fixed port.
     // Webhooks reach the dev server through a tunnel (npm run tunnel). Only POST /hooks/4shadow is
     // served to those hosts; src/hooks.server.ts turns everything else away.
     allowedHosts: [".trycloudflare.com", ".ngrok-free.app", ".ngrok.app"],

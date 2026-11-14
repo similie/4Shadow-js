@@ -1,4 +1,5 @@
 <script lang="ts">
+  import CloseButton from "#lib/components/CloseButton.svelte";
   import { compass, dailyRows, type Forecast, type Place } from "@similie/4shadow";
   import { client } from "#lib/config.ts";
   import { formatCoords, formatTime } from "#lib/format.ts";
@@ -69,7 +70,7 @@
       <h2>{title}</h2>
       <p>{subtitle}</p>
     </div>
-    <button class="close" onclick={onClose} aria-label="Close">×</button>
+    <CloseButton onclick={onClose} />
   </header>
 
   {#if error}
@@ -174,17 +175,6 @@
     margin: 2px 0 0;
     font-size: 12px;
     color: var(--muted);
-  }
-  .close {
-    flex: none;
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
-    border: 1px solid var(--border);
-    background: none;
-    font-size: 18px;
-    line-height: 1;
-    color: var(--text-2);
   }
   .now {
     display: grid;

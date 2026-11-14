@@ -245,7 +245,8 @@ const id = (alertId: string) => `/${encodeURIComponent(alertId)}`;
  * Early warnings, as `client.alerts`. An alert watches an area for conditions (rain totals, gusts,
  * waves ...) in every new forecast run; when they're forecast it has events, which show on your
  * 4Shadow map, are listed here and are sent to your webhook (see `verifyWebhook()`).
- * Needs an API key; it is always sent in the `api-key` header.
+ * Needs an API key, always sent in the `api-key` header. In a browser, leave the key out and point
+ * `baseUrl` at a route of your own server that adds it.
  *
  * ```ts
  * const alert = await fs.alerts.create({

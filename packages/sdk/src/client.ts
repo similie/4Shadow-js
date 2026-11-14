@@ -122,8 +122,8 @@ export class ForeshadowClient {
     this.headers = options.headers ?? {};
     this.timeoutMs = options.timeoutMs ?? 30_000;
     this.alerts = new AlertsApi((method, path, init = {}) => {
-      if (!this.apiKey) throw new Error("Early warnings need an API key: pass apiKey to ForeshadowClient");
-      // The alerts API takes the key only in the api-key header, never in the URL or body.
+      // The alerts API takes the key only in the api-key header, never in the URL or body. Without a
+      // key (behind your own proxy that adds it, say), requests go out without one.
       const url = this.url(`/v2/alerts${path}`, init.params ?? {}, false);
       return this.request(url, { signal: init.signal }, { method, body: init.body, keyInHeader: true }).then((r) => r.json());
     });

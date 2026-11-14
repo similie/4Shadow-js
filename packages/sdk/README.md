@@ -122,7 +122,7 @@ const { events } = await fs.alerts.events({ alert: alert.id }); // upcoming and 
 const geojson = await fs.alerts.eventsGeoJson(); // all your alerts' events, for a map source
 ```
 
-`area_mode` sets how the area is read: `"any"` (anywhere in it, the default), `"mean"` (its average) or `"coverage"` (on at least `coverage_percent` of it). `alerts.preview()` checks a definition without saving it, and returns the area's values at every step for drawing. `update()`, `delete()`, `deliveries()`, `test()` and `rotateSecret()` do what they say. The alerts API takes the key only in the `api-key` header, so these calls always send it there.
+`area_mode` sets how the area is read: `"any"` (anywhere in it, the default), `"mean"` (its average) or `"coverage"` (on at least `coverage_percent` of it). `alerts.preview()` checks a definition without saving it, and returns the area's values at every step for drawing. `update()`, `delete()`, `deliveries()`, `test()` and `rotateSecret()` do what they say. The alerts API takes the key only in the `api-key` header, so these calls always send it there. In a browser, keep the key on your server: create the client without a key and point `baseUrl` at a route of yours that adds it (the [map lab](../../apps/map-lab) does this).
 
 Notifications follow [Standard Webhooks](https://www.standardwebhooks.com). Check them with `verifyWebhook()`, passing the body exactly as received:
 

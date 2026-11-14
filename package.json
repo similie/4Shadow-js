@@ -3,12 +3,18 @@
   "private": true,
   "description": "JavaScript SDK and map lab for the 4Shadow weather forecast API",
   "license": "MIT",
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "build": "npm run build -w packages/sdk",
     "test": "npm test -w packages/sdk",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "lab": "npm run dev -w apps/map-lab"
+    "lab": "npm run dev -w apps/map-lab",
+    "tunnel": "npm run tunnel -w apps/map-lab"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

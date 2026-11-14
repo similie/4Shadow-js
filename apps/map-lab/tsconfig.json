@@ -1,0 +1,9 @@
+{
+  "extends": "$app/tsconfig",
+  "compilerOptions": {
+    // Resolve the workspace SDK to its TypeScript source (see the SDK's "source" export).
+    "customConditions": ["source"]
+  },
+  "include": ["src", "*"],
+  "exclude": ["src/service-worker"]
+}

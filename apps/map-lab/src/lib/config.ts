@@ -4,7 +4,7 @@ import { ForeshadowClient } from "@similie/4shadow";
  * The lab's own server forwards API calls and adds your key (src/routes/api/4shadow), so the page's
  * clients have no key and the key never reaches the browser.
  */
-export const PROXY_URL = `${globalThis.location?.origin ?? "http://localhost:5173"}/api/4shadow`;
+export const PROXY_URL = `${globalThis.location?.origin ?? "http://localhost:5181"}/api/4shadow`;
 
 /** Forecast data: through the proxy, or straight from the API in VITE_FORESHADOW_URL (a local one needs no key). */
 export const API_URL = (import.meta.env.VITE_FORESHADOW_URL || PROXY_URL).replace(/\/+$/, "");

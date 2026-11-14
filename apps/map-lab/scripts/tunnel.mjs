@@ -8,13 +8,13 @@
  *   npm run tunnel            (with the lab running: npm run lab)
  *
  * Quick tunnel addresses change every run. Point an existing alert at the new one with "Use this lab"
- * in its webhook settings. With ngrok instead: ngrok http 5173, then set WEBHOOK_URL in .env.local.
+ * in its webhook settings. With ngrok instead: ngrok http 5181, then set WEBHOOK_URL in .env.local.
  */
 import { spawn } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const port = process.env.PORT ?? "5173";
+const port = process.env.PORT ?? "5181";
 const dir = fileURLToPath(new URL("../.rig/", import.meta.url));
 const file = dir + "tunnel-url";
 mkdirSync(dir, { recursive: true, mode: 0o700 });

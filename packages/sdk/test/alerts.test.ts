@@ -79,9 +79,13 @@ describe("client.alerts", () => {
     expect((await plan.c.alerts.create(rain).catch((e) => e)).detail).toBe("Your plan allows 3 alerts; delete one or upgrade");
   });
 
-  it("needs an API key", async () => {
-    const c = new ForeshadowClient({ fetch: vi.fn() });
-    expect(() => c.alerts.list()).toThrow(/API key/);
+  it("works without a key, behind a proxy that adds it", async () => {
+    const fetch = vi.fn(async () => jsonResponse({ alerts: [], limit: 3 }));
+    const c = new ForeshadowClient({ baseUrl: "https://my.app/api/4shadow", fetch });
+    expect(await c.alerts.list()).toEqual({ alerts: [], limit: 3 });
+    const [url, init] = fetch.mock.calls[0]! as unknown as [string, RequestInit];
+    expect(url).toBe("https://my.app/api/4shadow/v2/alerts");
+    expect(init.headers).not.toHaveProperty("api-key");
   });
 });
 

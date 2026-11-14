@@ -18,7 +18,7 @@ export const LAND = "#262b33";
 const SOURCE = "openmaptiles";
 const NAME = ["coalesce", ["get", "name:en"], ["get", "name"]];
 const FONT = ["Noto Sans Regular"];
-const FONT_BOLD = ["Noto Sans Bold"];
+export const FONT_BOLD = ["Noto Sans Bold"];
 const TEXT = "#e8edf2";
 const HALO = "rgba(8, 11, 16, 0.85)";
 

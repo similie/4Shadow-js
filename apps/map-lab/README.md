@@ -12,25 +12,46 @@ A local SvelteKit app for building and testing 4Shadow weather maps. It draws Wi
 - **Click for a point forecast**: current conditions (with waves at sea), a meteogram with a wave row at sea (click an hour to show it on the map), daily and hourly tables.
 - **Place search** with GeoNames names, or type `lat, lon`.
 - **Server tiles** setting: shows the server's PNG tiles in place of the WebGL layer, to compare the two.
+- **Early warnings.** Draw an area (a point and radius, or a polygon), set conditions such as 50 mm of rain in 24 hours, and see at once what the latest forecast says for it: a chart per condition, with the hours that meet it. Save it and its events show on the map (filled while on at the map's time, outlined while still to come) and on the timeline. Each alert shows its webhook deliveries, and the webhooks the lab itself received, with their signatures checked.
 
 ## Run it
 
-You need a 4Shadow API that serves fields (`/v2/{model}/fields/…`). The simplest is a local one from the `hyphen-forecaster` repo:
-
-```sh
-cd hyphen-forecaster && .venv/bin/uvicorn forecast.api:app --port 5003
-```
-
-Then, from the root of this repo:
+You need a 4Shadow API key: get one at [4shadow.io](https://4shadow.io). Copy `.env.example` to `apps/map-lab/.env.local` (git-ignored) and set `FORESHADOW_API_KEY`. Then, from the root of this repo:
 
 ```sh
 npm install
 npm run lab        # http://localhost:5173
 ```
 
-To use another API, copy `.env.example` to `.env.local` and set `VITE_FORESHADOW_URL`, plus `VITE_FORESHADOW_KEY` if it needs a key. `.env.local` is git-ignored. In the browser the key goes in the query string, so use a test key.
+The browser talks only to the lab's own server, which adds your key and passes the request on to `https://api.4shadow.io`. The key never reaches the browser.
 
-Keys: <kbd>Space</kbd> plays and pauses, <kbd>←</kbd>/<kbd>→</kbd> move an hour (with <kbd>Shift</kbd>, a day), <kbd>Esc</kbd> closes the point panel. The map position is kept in the URL.
+To receive your alerts' webhooks, run a tunnel next to the lab (it needs [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)):
+
+```sh
+npm run tunnel     # prints https://….trycloudflare.com/hooks/4shadow
+```
+
+New alerts in the lab send their webhooks there. To use ngrok or another tunnel instead, set `WEBHOOK_URL` in `.env.local` to its address plus `/hooks/4shadow`.
+
+To have the browser call an API directly instead of through the lab's server, set `VITE_FORESHADOW_URL`; see `.env.example`.
+
+Keys: <kbd>Space</kbd> plays and pauses, <kbd>←</kbd>/<kbd>→</kbd> move an hour (with <kbd>Shift</kbd>, a day), <kbd>Esc</kbd> closes the panels. While drawing an area: <kbd>Enter</kbd> closes the polygon, <kbd>Backspace</kbd> removes the last corner, <kbd>Esc</kbd> stops. The map position is kept in the URL.
+
+## Early warnings, end to end
+
+```
+browser ── /api/4shadow/v2/… ──▶ lab server ── + api-key ──▶ api.4shadow.io
+                                     ▲                            │ webhook, signed
+browser ◀── /api/rig/feed (SSE) ─────┤                            ▼
+                                     └── POST /hooks/4shadow ◀── tunnel
+```
+
+- **The proxy** (`src/routes/api/4shadow/[...path]`) passes `v2/` requests on with your key. When an alert response carries a webhook secret (shown once: on create, on a new secret, or when a webhook is added), it keeps a copy in `.rig/secrets.json` so the receiver can check signatures; deleting the alert drops it.
+- **The receiver** (`src/routes/hooks/4shadow`) checks each delivery with the SDK's `verifyWebhook()` and answers 204, or 400 when the signature is wrong. Retries of one notification share a `webhook-id`, so a repeat shows as a retry.
+- **The feed** (`src/routes/api/rig/feed`) streams what the receiver saw to the page, which refreshes the alerts and events when one arrives.
+- **Through the tunnel, only the receiver answers.** Every other path, the proxy above all, answers only requests from this machine (`src/lib/server/local-only.ts`, used by both the dev server and `npm start`).
+
+In your own app the receiver is the part to copy: read the raw body, look up the alert's secret, call `verifyWebhook()`, answer 2xx quickly and do the work afterwards.
 
 ## How it's built
 
@@ -49,9 +70,21 @@ Keys: <kbd>Space</kbd> plays and pauses, <kbd>←</kbd>/<kbd>→</kbd> move an h
 | `gl.ts` | Shader helpers: MapLibre's projection prelude, grid sampling in GLSL, float textures. |
 | `basemap.ts` | Dark basemap on OpenFreeMap vector tiles. Weather sits under coasts, borders and labels. |
 
+`src/lib/alerts/` holds the early-warning code:
+
+| File | What it does |
+|---|---|
+| `alert-layers.ts` | Alerts on the map, without Svelte: areas, events by the map's time, and drawing a point or polygon. |
+| `geo.ts` | Circles on the globe, areas and their sizes, and alerts in words ("Precipitation ≥ 50 mm in 24 h"). |
+| `store.svelte.ts` | Your alerts, their events and the webhooks received, shared by the panel, map and timeline. |
+
+The panels are in `src/lib/components/alerts/`: `AlertsPanel` (list and detail), `AlertEditor` (draw, set conditions, preview, save) and `PreviewChart`.
+
 The app uses the SDK's TypeScript source (the `source` export condition), so SDK changes show up here without a rebuild.
 
 ## Data use
+
+Through the proxy, the map's requests use your key and count against your plan, like any other API use.
 
 A global field at 0.25° is about 2 MB per variable per step: wind (u + v) is about 4 MB, and the 1° pressure field for isobars is about 130 KB. The lab loads the world at 0.5° (a quarter of that) and, from zoom 3, the area in view at 0.25°: at zoom 4 on a large screen, about 0.4 MB of wind per step. Change the world grid under *More settings → Global grid*; at 0.25° there is no separate detail.
 

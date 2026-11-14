@@ -1,0 +1,53 @@
+{
+  "name": "@similie/4shadow",
+  "version": "0.1.0",
+  "description": "Client for the 4Shadow weather forecast API: point forecasts for any place or point on Earth, place search, map tiles, raw gridded fields for WebGL maps, and early-warning alerts with signed webhooks.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+  },
+  "keywords": [
+    "weather",
+    "forecast",
+    "gfs",
+    "noaa",
+    "maps",
+    "webgl",
+    "geocoding",
+    "4shadow"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/similie/4shadow-js.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://4shadow.io",
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
+  }
+}

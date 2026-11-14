@@ -1,4 +1,4 @@
-# 4shadow-js
+# 4Shadow-js
 
 JavaScript tools for the [4Shadow](https://4shadow.io) weather forecast API, by [Similie](https://similie.com).
 

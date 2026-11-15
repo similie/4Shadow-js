@@ -47,6 +47,11 @@ export interface AlertInput extends AlertDefinition {
   model?: Model;
   /** An https URL to notify. The response to `create()` has its secret, once. */
   webhook_url?: string | null;
+  /**
+   * Up to 10 addresses to mail. Each new one is asked to confirm first, and every alert mail can
+   * unsubscribe it. Your account's email must be confirmed. `[]` or `null` stops mailing.
+   */
+  email_to?: string[] | null;
   /** Your own keys and values (up to 50, 4 KB), sent back with every notification. */
   metadata?: AlertMetadata;
   /** false saves the alert paused. */
@@ -66,6 +71,8 @@ export interface Alert extends Required<Omit<AlertDefinition, "conditions">> {
   conditions: (AlertCondition & { accumulate_hours: number | null })[];
   /** `secret` is only in the responses to `create()`, `rotateSecret()` and an update that adds a webhook. */
   webhook: { url: string; secret_hint: string; secret?: string } | null;
+  /** The addresses this alert mails; only `confirmed` ones get mail. */
+  email: { address: string; status: "confirmed" | "pending" | "unsubscribed" }[];
   metadata: AlertMetadata;
   active: boolean;
   evaluation: {

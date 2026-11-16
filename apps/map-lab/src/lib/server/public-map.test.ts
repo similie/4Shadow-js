@@ -40,6 +40,10 @@ describe("public map door", () => {
     expect((await get("v2/aigfs/forecast?lat=1&lon=2&model=gfs")).status).toBe(200); // another model's own path
     expect(up.calls[1]).toEqual({ url: `${API}/v2/aigfs/forecast?lat=1&lon=2`, key: "secret-key" });
     expect((await get("v2/AIGFS/forecast?lat=1&lon=2")).status).toBe(404);
+    // Which models have a run, so the map can offer them.
+    const health = await get("v2/health?verbose=1");
+    expect(health.status).toBe(200);
+    expect(up.calls[2]).toEqual({ url: `${API}/v2/health`, key: "secret-key" });
   });
 
   it("refuses writes, early warnings and anything the map doesn't use", async () => {

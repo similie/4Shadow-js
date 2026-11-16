@@ -15,6 +15,8 @@ import { forgetSecret, rememberSecret } from "#lib/server/rig.ts";
 
 const publicMap =
   MAP_MODE === "public" ? new PublicMap({ apiUrl: FORESHADOW_API_URL, apiKey: FORESHADOW_API_KEY, cacheBytes: CACHE_MB * 1024 * 1024 }) : null;
+if (publicMap && !FORESHADOW_API_KEY)
+  console.warn("MAP_MODE=public without FORESHADOW_API_KEY: the map will have no data. Get a key at https://4shadow.io");
 
 const REQUEST_HEADERS = ["accept", "content-type", "if-none-match", "if-modified-since"];
 const RESPONSE_HEADERS = ["content-type", "cache-control", "etag", "last-modified", "expires", "vary"];

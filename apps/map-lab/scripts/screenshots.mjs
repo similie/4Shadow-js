@@ -282,6 +282,8 @@ try {
       `document.head.insertAdjacentHTML("beforeend", "<style>.top-left,.layers,.bottom,.maplibregl-control-container{display:none!important}</style>")`,
     );
     await page.idle();
+    // A still of the bare map too, for the social preview image.
+    await shoot(page, join(OUT, "wind-still.png"));
     await animate(page, "wind");
   }
   page.close();

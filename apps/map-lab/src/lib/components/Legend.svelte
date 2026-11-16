@@ -17,8 +17,9 @@
     return `rgba(${r}, ${g}, ${b}, ${Math.max(0.35, a! / 255).toFixed(2)})`;
   }
 
+  /** Tick labels: whole thousands shortened from 10,000 up (visibility in m); pressure stays 1000, 1010. */
   function short(v: number): string {
-    if (Math.abs(v) >= 1000) return `${+(v / 1000).toFixed(1)}k`;
+    if (Math.abs(v) >= 10_000) return `${+(v / 1000).toFixed(1)}k`;
     return String(+v.toFixed(2));
   }
 </script>

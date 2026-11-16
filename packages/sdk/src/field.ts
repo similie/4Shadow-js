@@ -109,7 +109,7 @@ export class Field {
       }
     }
     if (den === 0) return NaN;
-    return (((Math.atan2(x, y) * 180) / Math.PI) % 360 + 360) % 360;
+    return ((((Math.atan2(x, y) * 180) / Math.PI) % 360) + 360) % 360;
   }
 
   /** The four grid points around a point (flat indices) and their bilinear weights; null outside. */

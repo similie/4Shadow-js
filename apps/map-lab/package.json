@@ -11,8 +11,11 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "start": "node build",
     "preview": "vite preview",
-    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+    "tunnel": "node scripts/tunnel.mjs",
+    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test": "svelte-kit sync && vitest run"
   },
   "dependencies": {
     "@similie/4shadow": "0.1.0",
@@ -20,7 +23,7 @@
     "maplibre-gl": "^6.18.0"
   },
   "devDependencies": {
-    "@sveltejs/adapter-static": "^4.0.1",
+    "@sveltejs/adapter-node": "6.0.1",
     "@sveltejs/kit": "^3.2.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/d3-contour": "^3.0.6",
@@ -28,6 +31,7 @@
     "svelte": "^5.57.3",
     "svelte-check": "^4.7.8",
     "typescript": "^6.0.3",
-    "vite": "^8.3.8"
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
   }
 }

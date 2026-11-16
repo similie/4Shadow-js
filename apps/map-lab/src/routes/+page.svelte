@@ -1,15 +1,23 @@
 <script lang="ts">
-  import type { Place, RunDetail, RunSummary, VariableInfo } from "@similie/4shadow";
+  import type { Alert, AlertArea, Place, RunDetail, RunSummary, VariableInfo } from "@similie/4shadow";
   import * as maplibregl from "maplibre-gl";
   import { onMount } from "svelte";
+  import { ALERT_COLORS, AlertLayers } from "#lib/alerts/alert-layers.ts";
+  import { bounds } from "#lib/alerts/geo.ts";
+  import { AlertsStore } from "#lib/alerts/store.svelte.ts";
+  import AlertsPanel from "#lib/components/alerts/AlertsPanel.svelte";
   import Legend from "#lib/components/Legend.svelte";
   import PointPanel from "#lib/components/PointPanel.svelte";
   import Search from "#lib/components/Search.svelte";
-  import Timeline from "#lib/components/Timeline.svelte";
-  import { API_URL, client } from "#lib/config.ts";
+  import Timeline, { type TimelineMark } from "#lib/components/Timeline.svelte";
+  import { API_URL, client, DIRECT } from "#lib/config.ts";
   import { formatCoords, formatValue, formatWave, formatWind } from "#lib/format.ts";
   import { COLOR_LAYERS } from "#lib/weather/catalog.ts";
   import { WeatherMap, type Readout, type Status } from "#lib/weather/weather-map.ts";
+
+  let { data } = $props();
+  /** A public map (MAP_MODE=public) shows the weather only: early warnings belong to the key's owner. */
+  const publicMap = $derived(data.mode === "public");
 
   let container: HTMLDivElement;
   let wm = $state.raw<WeatherMap | null>(null);
@@ -20,11 +28,15 @@
   let isobarsOn = $state(true);
   let compare = $state(false);
   let globe = $state(false);
+  /** Day basemap (light land and sea, dark particles); the panels stay as they are. */
+  let day = $state(false);
   // The global grid. Zoomed in, the area in view is fetched at 0.25° on top of it.
   let stride = $state(2);
   let opacity = $state(0.85);
   let speed = $state(3);
   let settingsOpen = $state(false);
+  /** Height of the bottom stack (legend, readout, timeline): the side panels end above it. */
+  let bottomHeight = $state(0);
 
   let run = $state.raw<RunDetail | null>(null);
   let runs: RunSummary[] = $state.raw([]);
@@ -37,6 +49,14 @@
   let point: { lat: number; lon: number; place?: Place } | null = $state(null);
   let fatal = $state<string | null>(null);
 
+  // Early warnings: your alerts and their events, on the map, the timeline and in their panel.
+  const alerts = new AlertsStore();
+  let alertLayers = $state.raw<AlertLayers | null>(null);
+  let alertsOpen = $state(false);
+  let selectedAlert = $state<string | null>(null);
+  /** Set while an alert is being drawn or edited: map clicks belong to the editor then. */
+  let alertEditing = $state<{ alert: Alert | null } | null>(null);
+
   const layer = $derived(COLOR_LAYERS.find((l) => l.id === layerId) ?? null);
   const legendInfo = $derived(layer ? variables.find((v) => v.id === layer.legendVar) : undefined);
   const initTime = $derived(run ? Date.parse(run.init_time) : 0);
@@ -47,12 +67,50 @@
     w.onTime = (ms) => (time = ms);
     w.map.on("mousemove", (e) => (readout = w.readout(e.lngLat.lng, e.lngLat.lat)));
     w.map.on("mouseout", () => (readout = null));
-    w.map.on("click", (e) => openPoint({ lat: e.lngLat.lat, lon: e.lngLat.wrap().lng }));
+    const al = new AlertLayers(w.map);
+    w.map.on("click", (e) => {
+      if (al.handleClick(e)) return; // a corner of the area being drawn
+      const hit = al.hit(e.point);
+      if (hit && !alertEditing) return openAlerts(hit);
+      if (!alertEditing) openPoint({ lat: e.lngLat.lat, lon: e.lngLat.wrap().lng });
+    });
     wm = w;
+    alertLayers = al;
     if (import.meta.env.DEV) (window as unknown as { weatherMap: WeatherMap }).weatherMap = w; // for poking at in devtools
     load(w);
-    return () => w.destroy();
+    if (data.mode !== "public") alerts.start();
+    const unalign = alignBottomBar(container);
+    return () => {
+      unalign();
+      alerts.stop();
+      al.destroy();
+      w.destroy();
+    };
   });
+
+  /**
+   * Keep the bottom bar level with the zoom buttons and clear of them, above the attribution (which
+   * changes height as it opens, closes and wraps).
+   */
+  function alignBottomBar(el: HTMLElement): () => void {
+    const corner = el.querySelector<HTMLElement>(".maplibregl-ctrl-bottom-right");
+    const zoom = corner?.querySelector<HTMLElement>(".maplibregl-ctrl-group");
+    if (!corner || !zoom) return () => {};
+    const root = document.documentElement.style;
+    const update = () => {
+      const r = zoom.getBoundingClientRect();
+      root.setProperty("--controls-bottom", `${Math.round(window.innerHeight - r.bottom)}px`);
+      root.setProperty("--controls-right", `${Math.round(window.innerWidth - r.left + 8)}px`);
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(corner);
+    window.addEventListener("resize", update);
+    update();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }
 
   async function load(w: WeatherMap) {
     try {
@@ -63,7 +121,15 @@
       if (!list.latest) throw new Error("The API has no forecast runs yet");
       await selectRun(list.latest);
     } catch (e) {
-      fatal = `Could not reach the forecast API at ${API_URL}: ${(e as Error).message}`;
+      const rig = DIRECT
+        ? null
+        : await fetch("/api/rig")
+            .then((r) => r.json())
+            .catch(() => null);
+      fatal =
+        rig && !rig.keyConfigured
+          ? "The lab has no API key. Put FORESHADOW_API_KEY=your-key in apps/map-lab/.env.local and restart it."
+          : `Could not reach the forecast API at ${DIRECT ? API_URL : (rig?.apiUrl ?? API_URL)}: ${(e as Error).message}`;
     }
   }
 
@@ -83,6 +149,24 @@
   $effect(() => wm?.setStride(stride));
   $effect(() => wm?.setOpacity(opacity));
   $effect(() => wm?.setProjection(globe ? "globe" : "mercator"));
+  $effect(() => wm?.setTheme(day ? "light" : "dark"));
+
+  // Push alerts into the map: areas, events, and which events are on at the map's time (by the hour).
+  const hour = $derived(Math.round(time / 3_600_000) * 3_600_000);
+  $effect(() => alertLayers?.setAlerts(alerts.alerts, alertsOpen ? selectedAlert : null));
+  $effect(() => alertLayers?.setEvents(alerts.events));
+  $effect(() => alertLayers?.setTime(hour));
+
+  const eventCount = $derived(alerts.events?.features.length ?? 0);
+  const marks = $derived<TimelineMark[]>(
+    (alerts.events?.features ?? []).map(({ properties: e }) => ({
+      start: Date.parse(e.start),
+      end: Date.parse(e.end),
+      label: e.alert_name ?? "Alert",
+      color: ALERT_COLORS.now,
+      dim: alertsOpen && !!selectedAlert && e.alert_id !== selectedAlert,
+    })),
+  );
 
   function seek(ms: number) {
     wm?.setTime(ms);
@@ -103,7 +187,26 @@
     }
   });
 
+  function openAlerts(id: string | null = selectedAlert) {
+    closePoint();
+    selectedAlert = id;
+    alertsOpen = true;
+  }
+
+  function focusArea(area: AlertArea, radiusKm: number) {
+    const [w, s, e, n] = bounds(area, radiusKm);
+    const narrow = window.innerWidth < 720;
+    wm?.map.fitBounds(
+      [
+        [w, s],
+        [e, n],
+      ],
+      { padding: { top: 60, bottom: 150, left: narrow ? 40 : 460, right: narrow ? 40 : 200 }, maxZoom: 8, duration: 900 },
+    );
+  }
+
   function openPoint(p: { lat: number; lon: number; place?: Place }) {
+    alertsOpen = false;
     point = p;
     marker?.remove();
     const el = document.createElement("div");
@@ -130,34 +233,65 @@
       e.preventDefault();
     } else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
       seek(time + (e.key === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 24 : 1) * 3_600_000);
-    } else if (e.key === "Escape") {
+    } else if (e.key === "Escape" && !alertEditing) {
       closePoint();
+      alertsOpen = false;
     }
   }
 </script>
 
 <svelte:window onkeydown={keydown} />
 
+<svelte:head>
+  <title>{publicMap ? "Weather map · 4Shadow" : "4Shadow map lab"}</title>
+  {#if publicMap}
+    <meta
+      name="description"
+      content="Live global weather: wind, rain, temperature, pressure and waves for the next 16 days, from NOAA GFS through the 4Shadow API."
+    />
+  {/if}
+</svelte:head>
+
 <div class="map" bind:this={container}></div>
 
-<div class="top-left">
+<div class="top-left" style:--bottom-stack="{bottomHeight}px">
   <div class="brand">
-    <svg viewBox="0 0 32 32" aria-hidden="true"
-      ><path d="M5 13c4-3 8-3 12 0s8 3 10 0M5 19c4-3 8-3 12 0s8 3 10 0" stroke="#7fd1ff" stroke-width="2.6" fill="none" stroke-linecap="round" /></svg
+    <a class="logo" href="https://4shadow.io" target="_blank" rel="noreferrer"
+      ><img src="/brand/4shadow-wordmark-dark.svg" alt="4Shadow" /><span class="tag">{publicMap ? "Live map" : "Map lab"}</span></a
     >
-    <span>4Shadow <em>map lab</em></span>
+    {#if publicMap}
+      <a class="warnings" href="https://4shadow.io/signup" target="_blank" rel="noreferrer" title="The data on this map comes from the 4Shadow API"
+        >Get a free API key</a
+      >
+    {:else}
+      <button
+        class="warnings"
+        class:active={alertsOpen}
+        aria-pressed={alertsOpen}
+        onclick={() => (alertsOpen ? (alertsOpen = false) : openAlerts())}
+        title="Alerts on your API key: draw an area, set conditions, get webhooks days ahead"
+      >
+        Early warnings
+        {#if eventCount}<span class="count num" style:background={ALERT_COLORS.now}>{eventCount}</span>{/if}
+      </button>
+    {/if}
   </div>
   <Search onPick={picked} />
-  {#if point}
-    <PointPanel
-      lat={point.lat}
-      lon={point.lon}
-      place={point.place}
+  {#if alertsOpen}
+    <AlertsPanel
+      store={alerts}
+      {variables}
+      layers={alertLayers}
       run={run?.run}
       {time}
-      onClose={closePoint}
-      onPick={seek}
+      bind:selected={selectedAlert}
+      bind:editing={alertEditing}
+      onSeek={seek}
+      onFocus={focusArea}
+      onClose={() => (alertsOpen = false)}
     />
+  {:else if point}
+    <PointPanel lat={point.lat} lon={point.lon} place={point.place} run={run?.run} {time} onClose={closePoint} onPick={seek} />
   {/if}
 </div>
 
@@ -173,6 +307,7 @@
   >
   <label class="toggle"><input type="checkbox" bind:checked={isobarsOn} /> Isobars</label>
   <label class="toggle"><input type="checkbox" bind:checked={globe} /> Globe</label>
+  <label class="toggle"><input type="checkbox" bind:checked={day} /> Day map</label>
   <button class="more" onclick={() => (settingsOpen = !settingsOpen)} aria-expanded={settingsOpen}>
     {settingsOpen ? "Fewer" : "More"} settings
   </button>
@@ -184,7 +319,7 @@
       <label title="Grid of the whole-world data. Zoomed in, the area in view also loads at 0.25°."
         >Global grid
         <select bind:value={stride}>
-          <option value={1}>0.25° (full)</option>
+          {#if !publicMap}<option value={1}>0.25° (full)</option>{/if}
           <option value={2}>0.5° + detail</option>
           <option value={4}>1° + detail</option>
         </select>
@@ -209,12 +344,16 @@
           </select>
         </label>
       {/if}
-      <p class="api">API: {API_URL}</p>
+      <p class="api">
+        {#if publicMap}Data: the 4Shadow API, through this site's server{:else}API: {DIRECT
+            ? API_URL
+            : `${alerts.rig?.apiUrl ?? "…"}, through the lab's server`}{/if}
+      </p>
     </div>
   {/if}
 </nav>
 
-<div class="bottom">
+<div class="bottom" bind:offsetHeight={bottomHeight}>
   <div class="info">
     {#if layer && legendInfo?.legend}
       <Legend info={legendInfo} label={layer.label} />
@@ -232,7 +371,7 @@
     {/if}
   </div>
   {#if steps.length}
-    <Timeline {steps} {time} {initTime} {playing} loading={status.loading > 0} onSeek={seek} onToggle={togglePlay} />
+    <Timeline {steps} {time} {initTime} {playing} {marks} loading={status.loading > 0} onSeek={seek} onToggle={togglePlay} />
   {/if}
 </div>
 
@@ -254,10 +393,17 @@
     left: 12px;
     width: 420px;
     max-width: calc(100vw - 24px);
+    /* Down to the legend and timeline, not over them. */
+    max-height: calc(100vh - 12px - var(--controls-bottom, 44px) - var(--bottom-stack, 0px) - 10px);
     display: flex;
     flex-direction: column;
     gap: 8px;
     z-index: 2;
+  }
+  .top-left > :global(aside.panel) {
+    max-height: none;
+    min-height: 0;
+    flex: 0 1 auto;
   }
   .brand {
     display: flex;
@@ -267,14 +413,66 @@
     letter-spacing: 0.01em;
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
   }
-  .brand svg {
-    width: 24px;
-    height: 24px;
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px 7px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: var(--shadow);
+    text-decoration: none;
+    text-shadow: none;
   }
-  .brand em {
-    font-style: normal;
-    font-weight: 400;
+  .logo img {
+    height: 17px;
+    width: auto;
+    display: block;
+  }
+  .tag {
+    font:
+      500 10px/1 ui-monospace,
+      "SF Mono",
+      Menlo,
+      monospace;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
     color: var(--text-2);
+  }
+  a.warnings {
+    color: inherit;
+    text-decoration: none;
+  }
+  .warnings {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    font-size: 13px;
+    font-weight: 500;
+    text-shadow: none;
+    box-shadow: var(--shadow);
+  }
+  .warnings.active {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: transparent;
+  }
+  .count {
+    min-width: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #1a0806;
+    text-align: center;
   }
   .layers {
     position: fixed;
@@ -371,8 +569,8 @@
   .bottom {
     position: fixed;
     left: 12px;
-    right: 58px;
-    bottom: 26px;
+    right: var(--controls-right, 58px);
+    bottom: var(--controls-bottom, 44px);
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -437,9 +635,6 @@
     }
     .layers {
       width: 140px;
-    }
-    .bottom {
-      right: 12px;
     }
   }
 </style>

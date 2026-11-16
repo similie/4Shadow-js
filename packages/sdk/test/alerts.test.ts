@@ -79,9 +79,13 @@ describe("client.alerts", () => {
     expect((await plan.c.alerts.create(rain).catch((e) => e)).detail).toBe("Your plan allows 3 alerts; delete one or upgrade");
   });
 
-  it("needs an API key", async () => {
-    const c = new ForeshadowClient({ fetch: vi.fn() });
-    expect(() => c.alerts.list()).toThrow(/API key/);
+  it("works without a key, behind a proxy that adds it", async () => {
+    const fetch = vi.fn(async () => jsonResponse({ alerts: [], limit: 3 }));
+    const c = new ForeshadowClient({ baseUrl: "https://my.app/api/4shadow", fetch });
+    expect(await c.alerts.list()).toEqual({ alerts: [], limit: 3 });
+    const [url, init] = fetch.mock.calls[0]! as unknown as [string, RequestInit];
+    expect(url).toBe("https://my.app/api/4shadow/v2/alerts");
+    expect(init.headers).not.toHaveProperty("api-key");
   });
 });
 
@@ -120,7 +124,9 @@ describe("verifyWebhook", () => {
     const secret = `whsec_${randomBytes(24).toString("base64")}`;
     const body = JSON.stringify({ type: "alert.test", timestamp: "2026-11-14T00:00:15Z", data: { alert: { id: "a1", name: "x", metadata: {} } } });
     const ts = Math.floor(Date.now() / 1000);
-    const sig = createHmac("sha256", Buffer.from(secret.slice(6), "base64")).update(`msg_1.${ts}.${body}`).digest("base64");
+    const sig = createHmac("sha256", Buffer.from(secret.slice(6), "base64"))
+      .update(`msg_1.${ts}.${body}`)
+      .digest("base64");
     const hook = await verifyWebhook(secret, { "webhook-id": "msg_1", "webhook-timestamp": String(ts), "webhook-signature": `v1,${sig}` }, body);
     expect(hook.type).toBe("alert.test");
   });

@@ -1,15 +1,7 @@
 import { AlertsApi } from "./alerts.js";
 import { ForeshadowError } from "./errors.js";
 import { decodeField, type Field } from "./field.js";
-import type {
-  Forecast,
-  Health,
-  Model,
-  PlacesResponse,
-  RunDetail,
-  RunsResponse,
-  VariablesResponse,
-} from "./types.js";
+import type { Forecast, Health, Model, PlacesResponse, RunDetail, RunsResponse, VariablesResponse } from "./types.js";
 
 export const DEFAULT_BASE_URL = "https://api.4shadow.io";
 
@@ -122,8 +114,8 @@ export class ForeshadowClient {
     this.headers = options.headers ?? {};
     this.timeoutMs = options.timeoutMs ?? 30_000;
     this.alerts = new AlertsApi((method, path, init = {}) => {
-      if (!this.apiKey) throw new Error("Early warnings need an API key: pass apiKey to ForeshadowClient");
-      // The alerts API takes the key only in the api-key header, never in the URL or body.
+      // The alerts API takes the key only in the api-key header, never in the URL or body. Without a
+      // key (behind your own proxy that adds it, say), requests go out without one.
       const url = this.url(`/v2/alerts${path}`, init.params ?? {}, false);
       return this.request(url, { signal: init.signal }, { method, body: init.body, keyInHeader: true }).then((r) => r.json());
     });
@@ -151,9 +143,7 @@ export class ForeshadowClient {
       headers["content-type"] = "application/json";
       body = JSON.stringify(init.body);
     }
-    const signals = [opts.signal, this.timeoutMs > 0 ? AbortSignal.timeout(this.timeoutMs) : undefined].filter(
-      (s): s is AbortSignal => !!s,
-    );
+    const signals = [opts.signal, this.timeoutMs > 0 ? AbortSignal.timeout(this.timeoutMs) : undefined].filter((s): s is AbortSignal => !!s);
     const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
     let res: Response;
     try {
@@ -164,17 +154,26 @@ export class ForeshadowClient {
     }
     if (!res.ok) {
       let detail: string | undefined;
+      const extra: { code?: string; resetsAt?: Date } = {};
       try {
-        const err = (await res.json()) as { detail?: unknown; message?: unknown; error?: unknown };
+        const err = (await res.json()) as { detail?: unknown; message?: unknown; error?: unknown; resets_at?: unknown };
         const d = err.detail ?? err.message;
         const text = typeof d === "string" ? d : Array.isArray(d) ? d.join("; ") : d !== undefined ? JSON.stringify(d) : undefined;
-        // The alerts API answers {error, detail}: "Invalid alert: name is required; ..."
         const summary = typeof err.error === "string" ? err.error : undefined;
-        detail = summary && text ? `${summary}: ${text}` : (text ?? summary);
+        if (summary && /^[a-z][a-z0-9_]*$/.test(summary)) {
+          // The gateway answers {error: "quota_exceeded", message, resets_at}.
+          extra.code = summary;
+          detail = text ?? summary;
+          const reset = typeof err.resets_at === "string" ? new Date(err.resets_at) : undefined;
+          if (reset && !Number.isNaN(reset.getTime())) extra.resetsAt = reset;
+        } else {
+          // The alerts API answers {error, detail}: "Invalid alert: name is required; ..."
+          detail = summary && text ? `${summary}: ${text}` : (text ?? summary);
+        }
       } catch {
         /* not JSON */
       }
-      throw new ForeshadowError(`${res.status} ${detail ?? res.statusText}`, res.status, url, detail);
+      throw new ForeshadowError(`${res.status} ${detail ?? res.statusText}`, res.status, url, detail, extra);
     }
     return res;
   }
@@ -197,11 +196,7 @@ export class ForeshadowClient {
   forecast(where: Where, options: ForecastOptions = {}): Promise<Forecast> {
     const { signal, vars, hours, start, tz, daily, run, model } = options;
     const loc = typeof where === "string" ? { q: where } : "q" in where ? { q: where.q } : { lat: where.lat, lon: where.lon };
-    return this.json<Forecast>(
-      "/v2/forecast",
-      { ...loc, vars: vars?.join(","), hours, start, tz, daily, run, model },
-      { signal },
-    );
+    return this.json<Forecast>("/v2/forecast", { ...loc, vars: vars?.join(","), hours, start, tz, daily, run, model }, { signal });
   }
 
   /** Places matching a name, best match first. */
@@ -210,16 +205,8 @@ export class ForeshadowClient {
   }
 
   /** Towns and villages nearest a point, closest first (within 50 km). */
-  nearestPlaces(
-    lat: number,
-    lon: number,
-    options: RequestOptions & { limit?: number; minPopulation?: number } = {},
-  ): Promise<PlacesResponse> {
-    return this.json<PlacesResponse>(
-      "/v2/places",
-      { lat, lon, limit: options.limit, min_population: options.minPopulation },
-      options,
-    );
+  nearestPlaces(lat: number, lon: number, options: RequestOptions & { limit?: number; minPopulation?: number } = {}): Promise<PlacesResponse> {
+    return this.json<PlacesResponse>("/v2/places", { lat, lon, limit: options.limit, min_population: options.minPopulation }, options);
   }
 
   /** The runs available for a model, newest first. */

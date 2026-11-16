@@ -1,4 +1,5 @@
 <script lang="ts">
+  import CloseButton from "#lib/components/CloseButton.svelte";
   import { compass, dailyRows, type Forecast, type Place } from "@similie/4shadow";
   import { client } from "#lib/config.ts";
   import { formatCoords, formatTime } from "#lib/format.ts";
@@ -69,7 +70,7 @@
       <h2>{title}</h2>
       <p>{subtitle}</p>
     </div>
-    <button class="close" onclick={onClose} aria-label="Close">×</button>
+    <CloseButton onclick={onClose} />
   </header>
 
   {#if error}
@@ -80,12 +81,30 @@
     <div class="now" class:stale={loading}>
       <div class="big">{v("t2m")}<span>°C</span></div>
       <dl>
-        <div><dt>Wind</dt><dd class="num">{v("wind_speed")} m/s {typeof cur?.wind_dir === "number" ? compass(cur.wind_dir) : ""}</dd></div>
-        <div><dt>Gusts</dt><dd class="num">{v("gust")} m/s</dd></div>
-        <div><dt>Rain</dt><dd class="num">{v("precip")} mm/h</dd></div>
-        <div><dt>Cloud</dt><dd class="num">{v("tcc", 0)} %</dd></div>
-        <div><dt>Humidity</dt><dd class="num">{v("rh2m", 0)} %</dd></div>
-        <div><dt>Pressure</dt><dd class="num">{v("mslp", 0)} hPa</dd></div>
+        <div>
+          <dt>Wind</dt>
+          <dd class="num">{v("wind_speed")} m/s {typeof cur?.wind_dir === "number" ? compass(cur.wind_dir) : ""}</dd>
+        </div>
+        <div>
+          <dt>Gusts</dt>
+          <dd class="num">{v("gust")} m/s</dd>
+        </div>
+        <div>
+          <dt>Rain</dt>
+          <dd class="num">{v("precip")} mm/h</dd>
+        </div>
+        <div>
+          <dt>Cloud</dt>
+          <dd class="num">{v("tcc", 0)} %</dd>
+        </div>
+        <div>
+          <dt>Humidity</dt>
+          <dd class="num">{v("rh2m", 0)} %</dd>
+        </div>
+        <div>
+          <dt>Pressure</dt>
+          <dd class="num">{v("mslp", 0)} hPa</dd>
+        </div>
         {#if typeof cur?.wave_height === "number"}
           <div class="wide">
             <dt>Waves</dt>
@@ -98,10 +117,13 @@
         {/if}
       </dl>
       {#if seaPoint && typeof cur?.wave_height === "number"}
-        <p class="muted small">Sea state from the nearest open sea, {seaPoint.distance_km.toFixed(0)} km away; near the shore it is usually calmer.</p>
+        <p class="muted small">
+          Sea state from the nearest open sea, {seaPoint.distance_km.toFixed(0)} km away; near the shore it is usually calmer.
+        </p>
       {/if}
       <p class="muted small">
-        Now in {forecast.timezone.name} · GFS run {forecast.run.slice(0, 8)} {forecast.run.slice(8)}Z
+        Now in {forecast.timezone.name} · GFS run {forecast.run.slice(0, 8)}
+        {forecast.run.slice(8)}Z
       </p>
     </div>
 
@@ -110,7 +132,9 @@
     {#if days.length}
       <table class="daily num">
         <thead>
-          <tr><th>Day</th><th>Low</th><th>High</th><th>Rain</th><th>Wind max</th><th>Gust max</th>{#if dailyWaves}<th>Waves max</th>{/if}</tr>
+          <tr
+            ><th>Day</th><th>Low</th><th>High</th><th>Rain</th><th>Wind max</th><th>Gust max</th>{#if dailyWaves}<th>Waves max</th>{/if}</tr
+          >
         </thead>
         <tbody>
           {#each days as d (d.date)}
@@ -174,17 +198,6 @@
     margin: 2px 0 0;
     font-size: 12px;
     color: var(--muted);
-  }
-  .close {
-    flex: none;
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
-    border: 1px solid var(--border);
-    background: none;
-    font-size: 18px;
-    line-height: 1;
-    color: var(--text-2);
   }
   .now {
     display: grid;

@@ -3,7 +3,7 @@ import type { FeatureCollection } from "geojson";
 import * as maplibregl from "maplibre-gl";
 import type { GeoJSONSource, Map as MapLibreMap, RasterTileSource } from "maplibre-gl";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import { darkStyle, LAND, WEATHER_BEFORE } from "./basemap";
+import { basemapPaint, basemapStyle, PALETTES, WEATHER_BEFORE, type MapTheme } from "./basemap";
 import { FieldCache, type FieldRequest } from "./cache";
 import { Crossfade } from "./crossfade";
 import { COLOR_LAYERS, WIND_VARS, type ColorLayerDef } from "./catalog";
@@ -52,6 +52,8 @@ export interface WeatherMapOptions {
   stride?: number;
   center?: [number, number];
   zoom?: number;
+  /** Night ("dark", the default) or Day ("light") basemap; change it later with setTheme. */
+  theme?: MapTheme;
 }
 
 /**
@@ -62,7 +64,8 @@ export class WeatherMap {
   readonly map: MapLibreMap;
   readonly cache: FieldCache;
   private readonly client: ForeshadowClient;
-  private readonly fieldLayer = new FieldLayer("weather-field", LAND);
+  private theme: MapTheme;
+  private readonly fieldLayer: FieldLayer;
   private readonly particleLayer = new ParticleLayer();
   private catalog = new Map<string, VariableInfo>();
   private run: RunDetail | null = null;
@@ -105,6 +108,9 @@ export class WeatherMap {
   constructor(options: WeatherMapOptions) {
     this.client = options.client;
     this.stride = options.stride ?? 1;
+    this.theme = options.theme ?? "dark";
+    this.fieldLayer = new FieldLayer("weather-field", PALETTES[this.theme].land);
+    this.particleLayer.setOptions({ color: PALETTES[this.theme].particles, opacity: PALETTES[this.theme].particleOpacity });
     this.cache = new FieldCache(options.client);
     this.cache.onLoad = (err) => {
       this.status(err);
@@ -112,7 +118,7 @@ export class WeatherMap {
     };
     this.map = new maplibregl.Map({
       container: options.container,
-      style: darkStyle(),
+      style: basemapStyle(this.theme),
       center: options.center ?? [20, 25],
       zoom: options.zoom ?? 1.8,
       maxZoom: 11,
@@ -160,7 +166,6 @@ export class WeatherMap {
           type: "line",
           source: `isobars-${slot}`,
           paint: {
-            "line-color": "rgba(255, 255, 255, 0.55)",
             "line-width": ["case", ["==", ["%", ["get", "hpa"], 20], 0], 1.3, 0.8],
             "line-opacity": 0,
             "line-opacity-transition": instant,
@@ -184,8 +189,6 @@ export class WeatherMap {
             "text-ignore-placement": true,
           },
           paint: {
-            "text-color": "rgba(255, 255, 255, 0.8)",
-            "text-halo-color": "rgba(0, 0, 0, 0.55)",
             "text-halo-width": 1,
             "text-opacity": 0,
             "text-opacity-transition": instant,
@@ -206,8 +209,6 @@ export class WeatherMap {
             "text-ignore-placement": true,
           },
           paint: {
-            "text-color": ["match", ["get", "kind"], "H", "#ffd6d6", "#d6e6ff"],
-            "text-halo-color": "rgba(0, 0, 0, 0.6)",
             "text-halo-width": 1.2,
             "text-opacity": 0,
             "text-opacity-transition": instant,
@@ -217,6 +218,7 @@ export class WeatherMap {
       );
     }
     this.loaded = true;
+    this.applyTheme();
     if (this.projection !== "mercator") this.applyProjection();
     this.applyVisibility();
     this.detailBox = this.stride > 1 ? detailBox(map) : null;
@@ -287,6 +289,35 @@ export class WeatherMap {
     this.compare = on;
     this.applyVisibility();
     this.refresh();
+  }
+
+  /** Night ("dark") or Day ("light"): basemap, land, isobars and particles change in place. */
+  setTheme(theme: MapTheme): void {
+    if (theme === this.theme) return;
+    this.theme = theme;
+    this.fieldLayer.setLand(PALETTES[theme].land);
+    this.particleLayer.setOptions({ color: PALETTES[theme].particles, opacity: PALETTES[theme].particleOpacity });
+    if (this.loaded) this.applyTheme();
+  }
+
+  private applyTheme(): void {
+    const p = PALETTES[this.theme];
+    const paint: Record<string, Record<string, unknown>> = basemapPaint(p);
+    for (const slot of SLOTS) {
+      paint[`isobar-lines-${slot}`] = { "line-color": p.isobar };
+      paint[`isobar-labels-${slot}`] = { "text-color": p.isobarText, "text-halo-color": p.isobarHalo };
+      paint[`pressure-centres-${slot}`] = {
+        "text-color": ["match", ["get", "kind"], "H", p.high, p.low],
+        "text-halo-color": p.centreHalo,
+      };
+    }
+    for (const [id, props] of Object.entries(paint)) {
+      if (!this.map.getLayer(id)) continue;
+      for (const [name, value] of Object.entries(props)) {
+        type Paint = Parameters<MapLibreMap["setPaintProperty"]>;
+        this.map.setPaintProperty(id, name as Paint[1], value as Paint[2]);
+      }
+    }
   }
 
   setOpacity(opacity: number): void {
@@ -478,9 +509,13 @@ export class WeatherMap {
       if (frames && b && ma && mb) {
         const step = (f: Field) => `${f.header.run}/${f.header.forecast_hour}`;
         const weights = this.isobarFade.show(step(frames.a), ma, step(b), mb, frames.t);
+        // Lines blend; labels and H/L markers switch at the halfway point, since two copies of a
+        // label a few pixels apart read as a double.
+        const nearer = weights[0] >= weights[1] ? 0 : 1;
         for (const slot of SLOTS) {
           for (const id of ISOBAR_LAYERS) {
-            this.paint(`${id}-${slot}`, id === "isobar-lines" ? "line-opacity" : "text-opacity", weights[slot]);
+            if (id === "isobar-lines") this.paint(`${id}-${slot}`, "line-opacity", weights[slot]);
+            else this.paint(`${id}-${slot}`, "text-opacity", slot === nearer ? 1 : 0);
           }
         }
         this.pressure = frames.t < 0.5 ? frames.a : b;
@@ -597,7 +632,13 @@ export class WeatherMap {
   destroy(): void {
     this.playing = false;
     this.isobarJobs.dispose();
+    // MapLibre's remove() deletes the view from the URL hash. Put it back when the page is still the
+    // map's own, so a remount (or a dev hot reload) and the history entry keep their place.
+    const { pathname, search, hash } = location;
     this.map.remove();
+    if (hash && !location.hash && location.pathname === pathname && location.search === search) {
+      history.replaceState(history.state, "", hash);
+    }
   }
 }
 

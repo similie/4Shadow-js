@@ -1,4 +1,6 @@
 // Against a real server: FORESHADOW_TEST_URL=http://localhost:5003 npm test
+// (or https://api.4shadow.io with FORESHADOW_API_KEY set). A full-resolution field is about 6 MB,
+// so the test allows a minute rather than vitest's default 5 seconds.
 import { describe, expect, it } from "vitest";
 import { ForeshadowClient } from "../src/index.js";
 
@@ -13,5 +15,5 @@ describe.skipIf(!url)("live API", () => {
     const fc = await c.forecast({ lat: -8.55, lon: 125.57 }, { vars: ["t2m"], start: "run", hours: 2, daily: false, run: run.run });
     const fromForecast = (fc.timeseries.t2m as number[])[1]!;
     expect(field.sample("t2m", -8.55, 125.57)).toBeCloseTo(fromForecast, 1);
-  });
+  }, 60_000);
 });

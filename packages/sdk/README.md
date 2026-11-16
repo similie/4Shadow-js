@@ -100,7 +100,7 @@ palette.ramp(256); // RGBA lookup texture for a shader
 palette.gradient(); // CSS gradient for a legend
 ```
 
-The [map lab](../../apps/map-lab) uses all of this to build animated weather maps: GPU colour layers, wind particles, isobars, a globe and time animation.
+The [map lab](https://github.com/similie/4Shadow-js/tree/main/apps/map-lab) uses all of this to build animated weather maps: GPU colour layers, wind particles, isobars, a globe and time animation.
 
 ## Early warnings
 
@@ -122,7 +122,7 @@ const { events } = await fs.alerts.events({ alert: alert.id }); // upcoming and 
 const geojson = await fs.alerts.eventsGeoJson(); // all your alerts' events, for a map source
 ```
 
-`area_mode` sets how the area is read: `"any"` (anywhere in it, the default), `"mean"` (its average) or `"coverage"` (on at least `coverage_percent` of it). `alerts.preview()` checks a definition without saving it, and returns the area's values at every step for drawing. `update()`, `delete()`, `deliveries()`, `test()` and `rotateSecret()` do what they say. The alerts API takes the key only in the `api-key` header, so these calls always send it there. In a browser, keep the key on your server: create the client without a key and point `baseUrl` at a route of yours that adds it (the [map lab](../../apps/map-lab) does this).
+`area_mode` sets how the area is read: `"any"` (anywhere in it, the default), `"mean"` (its average) or `"coverage"` (on at least `coverage_percent` of it). `alerts.preview()` checks a definition without saving it, and returns the area's values at every step for drawing. `update()`, `delete()`, `deliveries()`, `test()` and `rotateSecret()` do what they say. The alerts API takes the key only in the `api-key` header, so these calls always send it there. In a browser, keep the key on your server: create the client without a key and point `baseUrl` at a route of yours that adds it (the [map lab](https://github.com/similie/4Shadow-js/tree/main/apps/map-lab) does this).
 
 Notifications follow [Standard Webhooks](https://www.standardwebhooks.com). Check them with `verifyWebhook()`, passing the body exactly as received:
 

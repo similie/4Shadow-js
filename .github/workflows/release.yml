@@ -1,0 +1,82 @@
+name: Release SDK
+
+# Publishes @similie/4shadow when the version in packages/sdk/package.json is one npm doesn't have
+# yet, then tags the commit (sdk-vX.Y.Z) and makes a GitHub release from packages/sdk/CHANGELOG.md.
+# To release: bump the version and the changelog in a pull request, and merge it. See CONTRIBUTING.md.
+#
+# npm trusted publishing (OIDC): npm trusts this workflow file, so no npm token is stored anywhere.
+# Configured on npmjs.com under the package's Settings > Trusted publisher.
+
+on:
+  push:
+    branches: [main]
+    paths: [packages/sdk/package.json]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-sdk
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish @similie/4shadow
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # the tag and the GitHub release
+      id-token: write # npm trusted publishing
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: What's new
+        id: plan
+        run: |
+          name=$(node -p 'require("./packages/sdk/package.json").name')
+          version=$(node -p 'require("./packages/sdk/package.json").version')
+          tag="sdk-v$version"
+          if [ "$(npm view "$name@$version" version 2>/dev/null)" = "$version" ]; then publish=false; else publish=true; fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then release=false; else release=true; fi
+          {
+            echo "name=$name"
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "publish=$publish"
+            echo "release=$release"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### $name $version"
+            echo "- Publish to npm: $publish"
+            echo "- Tag and GitHub release: $release"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install
+        if: steps.plan.outputs.publish == 'true'
+        run: |
+          npm install -g npm@latest # trusted publishing needs npm 11.5.1 or newer
+          npm ci --no-audit --no-fund
+
+      - name: Publish to npm
+        if: steps.plan.outputs.publish == 'true'
+        # prepublishOnly runs the SDK's type check, tests and build first. Provenance is added
+        # automatically for a public repository.
+        run: npm publish -w packages/sdk
+
+      - name: Tag and GitHub release
+        if: steps.plan.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAME: ${{ steps.plan.outputs.name }}
+          VERSION: ${{ steps.plan.outputs.version }}
+          TAG: ${{ steps.plan.outputs.tag }}
+        run: |
+          awk -v head="## $VERSION" '$0 == head || index($0, head " ") == 1 { on = 1; next } on && /^## / { exit } on' packages/sdk/CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then echo "See [CHANGELOG.md](packages/sdk/CHANGELOG.md)." > notes.md; fi
+          printf '\nInstall: `npm install %s@%s` · https://www.npmjs.com/package/%s/v/%s\n' "$NAME" "$VERSION" "$NAME" "$VERSION" >> notes.md
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$NAME $VERSION" --notes-file notes.md

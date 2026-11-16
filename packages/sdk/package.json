@@ -1,8 +1,9 @@
 {
   "name": "@similie/4shadow",
   "version": "0.1.0",
-  "description": "Client for the 4Shadow weather forecast API: point forecasts for any place or point on Earth, place search, map tiles, raw gridded fields for WebGL maps, and early-warning alerts with signed webhooks.",
+  "description": "Weather forecast API client for JavaScript and TypeScript: global point forecasts by place name or coordinates, place search, map tiles, raw gridded fields for WebGL weather maps, and early-warning alerts with signed webhooks. NOAA GFS data through 4Shadow.",
   "license": "MIT",
+  "author": "Similie (https://similie.com)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,11 +18,15 @@
     "dist",
     "src",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "sideEffects": false,
   "engines": {
     "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -31,12 +36,21 @@
   },
   "keywords": [
     "weather",
+    "weather-api",
+    "weather-forecast",
     "forecast",
     "gfs",
     "noaa",
-    "maps",
+    "maplibre",
     "webgl",
+    "wind",
+    "waves",
+    "marine",
     "geocoding",
+    "alerts",
+    "early-warning",
+    "webhooks",
+    "typescript",
     "4shadow"
   ],
   "repository": {
@@ -45,6 +59,9 @@
     "directory": "packages/sdk"
   },
   "homepage": "https://4shadow.io",
+  "bugs": {
+    "url": "https://github.com/similie/4Shadow-js/issues"
+  },
   "devDependencies": {
     "@types/node": "^22.20.5",
     "typescript": "^6.0.3",

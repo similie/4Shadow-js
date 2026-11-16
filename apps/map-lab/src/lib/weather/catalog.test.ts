@@ -16,6 +16,7 @@ describe("layer catalog", () => {
 
   it("draws wind from its components, and moves wave layers with the waves", () => {
     expect(COLOR_LAYERS.find((l) => l.id === "wind")?.vars).toEqual(WIND_VARS);
+    for (const l of COLOR_LAYERS.filter((x) => x.winds)) expect(l.vars).toEqual(l.winds); // its own wind, drawn and moving
     for (const l of COLOR_LAYERS.filter((x) => x.flow)) {
       expect(l.flow!.dir).toMatch(/_dir$/);
       expect(l.flow!.period).toMatch(/_period$/);

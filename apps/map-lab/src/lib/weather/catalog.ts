@@ -15,6 +15,8 @@ export interface ColorLayerDef {
    * way its waves travel). Without it, the particles follow the wind.
    */
   flow?: { dir: string; period: string };
+  /** The eastward/northward wind the particles follow on this layer (default: the 10 m wind). */
+  winds?: [string, string];
 }
 
 const WAVES = { dir: "wave_dir", period: "wave_period" };
@@ -22,10 +24,22 @@ const SWELL = { dir: "swell_dir", period: "swell_period" };
 
 export const COLOR_LAYERS: ColorLayerDef[] = [
   { id: "wind", label: "Wind", vars: ["u10", "v10"], legendVar: "wind_speed", tileVar: "wind_speed", decimals: 1, icon: "≋" },
+  {
+    id: "wind100",
+    label: "Wind at 100 m",
+    vars: ["u100", "v100"],
+    legendVar: "wind_speed_100m",
+    tileVar: "wind_speed_100m",
+    decimals: 1,
+    icon: "⇶",
+    winds: ["u100", "v100"],
+  },
   { id: "gust", label: "Gusts", vars: ["gust"], legendVar: "gust", tileVar: "gust", decimals: 1, icon: "⤳" },
   { id: "t2m", label: "Temperature", vars: ["t2m"], legendVar: "t2m", tileVar: "t2m", decimals: 1, icon: "°" },
   { id: "precip", label: "Rain", vars: ["precip"], legendVar: "precip", tileVar: "precip", decimals: 1, icon: "☂" },
+  { id: "radar", label: "Radar", vars: ["refc"], legendVar: "refc", tileVar: "refc", decimals: 0, icon: "◉" },
   { id: "tcc", label: "Clouds", vars: ["tcc"], legendVar: "tcc", tileVar: "tcc", decimals: 0, icon: "☁" },
+  { id: "lcc", label: "Low clouds", vars: ["lcc"], legendVar: "lcc", tileVar: "lcc", decimals: 0, icon: "▁" },
   { id: "mslp", label: "Pressure", vars: ["mslp"], legendVar: "mslp", tileVar: "mslp", decimals: 0, icon: "◎" },
   { id: "waves", label: "Waves", vars: ["wave_height"], legendVar: "wave_height", tileVar: "wave_height", decimals: 1, icon: "〰", flow: WAVES },
   { id: "swell", label: "Swell", vars: ["swell_height"], legendVar: "swell_height", tileVar: "swell_height", decimals: 1, icon: "∿", flow: SWELL },
@@ -39,6 +53,19 @@ export const COLOR_LAYERS: ColorLayerDef[] = [
     icon: "⏱",
     flow: WAVES,
   },
+  { id: "feels_like", label: "Feels like", vars: ["feels_like"], legendVar: "feels_like", tileVar: "feels_like", decimals: 1, icon: "≃" },
+  { id: "heat_index", label: "Heat index", vars: ["heat_index"], legendVar: "heat_index", tileVar: "heat_index", decimals: 1, icon: "☼" },
+  { id: "wet_bulb", label: "Wet-bulb", vars: ["wet_bulb"], legendVar: "wet_bulb", tileVar: "wet_bulb", decimals: 1, icon: "◍" },
+  {
+    id: "fire_weather",
+    label: "Fire weather",
+    vars: ["fire_weather"],
+    legendVar: "fire_weather",
+    tileVar: "fire_weather",
+    decimals: 0,
+    icon: "▲",
+  },
+  { id: "vpd", label: "Dryness (VPD)", vars: ["vpd"], legendVar: "vpd", tileVar: "vpd", decimals: 2, icon: "◇" },
   { id: "rh2m", label: "Humidity", vars: ["rh2m"], legendVar: "rh2m", tileVar: "rh2m", decimals: 0, icon: "%" },
   { id: "d2m", label: "Dew point", vars: ["d2m"], legendVar: "d2m", tileVar: "d2m", decimals: 1, icon: "◌" },
   { id: "cape", label: "CAPE", vars: ["cape"], legendVar: "cape", tileVar: "cape", decimals: 0, icon: "ϟ" },
@@ -46,6 +73,24 @@ export const COLOR_LAYERS: ColorLayerDef[] = [
   { id: "vis", label: "Visibility", vars: ["vis"], legendVar: "vis", tileVar: "vis", decimals: 0, icon: "◐" },
   { id: "dswrf", label: "Sunshine", vars: ["dswrf"], legendVar: "dswrf", tileVar: "dswrf", decimals: 0, icon: "☀" },
   { id: "snod", label: "Snow depth", vars: ["snod"], legendVar: "snod", tileVar: "snod", decimals: 2, icon: "❄" },
+  {
+    id: "freezing_level",
+    label: "Freezing level",
+    vars: ["freezing_level"],
+    legendVar: "freezing_level",
+    tileVar: "freezing_level",
+    decimals: 0,
+    icon: "△",
+  },
+  {
+    id: "soil_moisture",
+    label: "Soil moisture",
+    vars: ["soil_moisture"],
+    legendVar: "soil_moisture",
+    tileVar: "soil_moisture",
+    decimals: 2,
+    icon: "▤",
+  },
 ];
 
 export const WIND_VARS: [string, string] = ["u10", "v10"];

@@ -74,6 +74,7 @@ export class WeatherMap {
   private layer: ColorLayerDef | null = COLOR_LAYERS[0]!;
   private shown: { layer: ColorLayerDef; frames: FieldFrames; detail: FieldFrames | null } | null = null;
   private windFrames: FieldFrames | null = null;
+  private windVars: [string, string] = WIND_VARS;
   /** Wave direction and period fields behind the wave particles (and the readout). */
   private flowFrames: { flow: NonNullable<ColorLayerDef["flow"]>; frames: FieldFrames } | null = null;
   /** The area fetched at full resolution, or null (zoomed out, or the global grid is already full). */
@@ -128,7 +129,7 @@ export class WeatherMap {
       renderWorldCopies: true,
       attributionControl: {
         compact: true,
-        customAttribution: "Forecast: NOAA GFS via 4Shadow · Places: GeoNames (CC BY 4.0)",
+        customAttribution: "Forecast: NOAA via 4Shadow · Places: GeoNames (CC BY 4.0)",
       },
     });
     this.map.touchZoomRotate.disableRotation();
@@ -396,7 +397,7 @@ export class WeatherMap {
   }
 
   private request(vars: string[], index: number, stride: number, bbox?: FieldRequest["bbox"]): FieldRequest {
-    return { run: this.run!.run, hour: this.run!.forecast_hours[index]!, vars, stride, bbox };
+    return { model: this.run!.model, run: this.run!.run, hour: this.run!.forecast_hours[index]!, vars, stride, bbox };
   }
 
   /** The two steps' fields for these variables if loaded (loading them, and a few ahead, if not). */
@@ -463,7 +464,8 @@ export class WeatherMap {
           }
         }
         if (!hold) {
-          if (this.shown?.layer !== def) this.fieldLayer.setSpec({ vars: def.vars, legend: info.legend, marine: info.marine });
+          if (this.shown?.layer !== def)
+            this.fieldLayer.setSpec({ vars: def.vars, legend: info.legend, marine: info.marine, landOnly: info.land_only });
           this.fieldLayer.setFrames(frames, detail);
           this.shown = { layer: def, frames, detail };
         }
@@ -489,10 +491,12 @@ export class WeatherMap {
     } else {
       this.flowFrames = null;
       if (this.particles) {
-        const frames = this.framesFor(WIND_VARS, this.stride);
+        const winds = def?.winds ?? WIND_VARS;
+        const frames = this.framesFor(winds, this.stride);
         if (frames) {
           this.windFrames = frames;
-          this.particleLayer.setFrames(frames);
+          this.windVars = winds;
+          this.particleLayer.setFrames(frames, winds);
         } else complete = false;
       } else this.windFrames = null;
     }
@@ -507,7 +511,8 @@ export class WeatherMap {
       const ma = frames ? this.isobarJobs.get(frames.a) : undefined;
       const mb = b ? this.isobarJobs.get(b) : undefined;
       if (frames && b && ma && mb) {
-        const step = (f: Field) => `${f.header.run}/${f.header.forecast_hour}`;
+        // By model too: a GFS and an AIGFS run share run ids and hours.
+        const step = (f: Field) => `${f.header.model}/${f.header.run}/${f.header.forecast_hour}`;
         const weights = this.isobarFade.show(step(frames.a), ma, step(b), mb, frames.t);
         // Lines blend; labels and H/L markers switch at the halfway point, since two copies of a
         // label a few pixels apart read as a double.
@@ -527,7 +532,7 @@ export class WeatherMap {
     const b = this.bracket();
     if (this.compare && def && b) {
       const run = this.run;
-      const url = (k: number) => this.client.tileUrl({ variable: def.tileVar, time: run.forecast_hours[k]!, run: run.run });
+      const url = (k: number) => this.client.tileUrl({ variable: def.tileVar, time: run.forecast_hours[k]!, run: run.run, model: run.model });
       const [ua, ub] = [url(b.ia), url(b.ib)];
       this.setTileOpacity(this.tileFade.show(ua, ua, ub, ub, b.t));
       for (const u of new Set([ua, ub])) {
@@ -617,8 +622,9 @@ export class WeatherMap {
     let wind: Readout["wind"] = null;
     const wf = this.windFrames ?? (this.shown?.layer.id === "wind" ? this.shown.frames : null);
     if (wf) {
-      const a = wf.a.wind(lat, wrapped);
-      const b = wf.b ? wf.b.wind(lat, wrapped) : a;
+      const [uv, vv] = this.windFrames ? this.windVars : WIND_VARS;
+      const a = wf.a.wind(lat, wrapped, uv, vv);
+      const b = wf.b ? wf.b.wind(lat, wrapped, uv, vv) : a;
       const u = a.u + (b.u - a.u) * wf.t;
       const v = a.v + (b.v - a.v) * wf.t;
       if (Number.isFinite(u) && Number.isFinite(v)) {
@@ -642,9 +648,9 @@ export class WeatherMap {
   }
 }
 
-/** Two sets of frames are for the same run and steps. */
+/** Two sets of frames are for the same model, run and steps. */
 function sameSteps(x: FieldFrames, y: FieldFrames): boolean {
-  const hour = (f: Field | null) => (f ? `${f.header.run}/${f.header.forecast_hour}` : "");
+  const hour = (f: Field | null) => (f ? `${f.header.model}/${f.header.run}/${f.header.forecast_hour}` : "");
   return hour(x.a) === hour(y.a) && hour(x.b) === hour(y.b);
 }
 

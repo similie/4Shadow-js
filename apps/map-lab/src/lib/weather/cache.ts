@@ -1,6 +1,7 @@
 import type { Field, ForeshadowClient } from "@similie/4shadow";
 
 export interface FieldRequest {
+  model: string;
   run: string;
   hour: number;
   vars: string[];
@@ -10,7 +11,7 @@ export interface FieldRequest {
 }
 
 /**
- * Fields (one forecast step's grid of a few variables) by run, hour, variables and stride:
+ * Fields (one forecast step's grid of a few variables) by model, run, hour, variables and stride:
  * fetched once, shared between layers, dropped oldest-first past a size limit.
  */
 export class FieldCache {
@@ -28,7 +29,7 @@ export class FieldCache {
   }
 
   static key(r: FieldRequest): string {
-    return `${r.run}/${r.hour}/${r.vars.join(",")}/${r.stride}${r.bbox ? `/${r.bbox.join(",")}` : ""}`;
+    return `${r.model}/${r.run}/${r.hour}/${r.vars.join(",")}/${r.stride}${r.bbox ? `/${r.bbox.join(",")}` : ""}`;
   }
 
   get(r: FieldRequest): Field | undefined {
@@ -56,7 +57,7 @@ export class FieldCache {
     let p = this.pending.get(key);
     if (p) return p;
     p = this.client
-      .field({ run: r.run, time: r.hour, vars: r.vars, stride: r.stride, bbox: r.bbox })
+      .field({ model: r.model, run: r.run, time: r.hour, vars: r.vars, stride: r.stride, bbox: r.bbox })
       .then((field) => {
         this.pending.delete(key);
         this.done.set(key, field);

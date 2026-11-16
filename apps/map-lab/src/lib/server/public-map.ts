@@ -60,6 +60,8 @@ export function checkField(q: URLSearchParams): string | null {
 }
 
 export const RULES: Rule[] = [
+  // Which models the API has runs of: the map offers those your key may call.
+  { name: "health", path: /^v2\/health$/, params: [], cache: "public, max-age=60", limit: [60, 600] },
   { name: "runs", path: new RegExp(`^v2/${MODEL}/runs$`), params: [], cache: "public, max-age=60", limit: [120, 600] },
   { name: "runs", path: new RegExp(`^v2/${MODEL}/runs/${RUN}$`), params: [], cache: "public, max-age=60", limit: [120, 600] },
   { name: "variables", path: new RegExp(`^v2/${MODEL}/variables$`), params: [], cache: "public, max-age=3600", limit: [120, 600] },

@@ -1,6 +1,9 @@
 /** Response shapes of the 4Shadow forecast API v2 (https://api.4shadow.io/v2/docs). */
 
-/** A forecast model the API serves: `gfs` always; `aigfs` (NOAA's AI model) where enabled. */
+/**
+ * A forecast model the API serves: `gfs` always; where enabled, `aigfs` (NOAA's AI model), `ifs` and `aifs`
+ * (ECMWF's physics and AI models) and `aerosols` (NOAA's air quality). `/v2/health` lists those with a run.
+ */
 export type Model = "gfs" | "aigfs" | (string & {});
 
 /** A place from the GeoNames-based place index. */

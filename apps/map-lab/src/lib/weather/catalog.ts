@@ -93,6 +93,12 @@ export const COLOR_LAYERS: ColorLayerDef[] = [
     decimals: 2,
     icon: "▤",
   },
+  // Air quality: from an air-quality model (NOAA GEFS-Aerosols), drawn over the weather model's wind.
+  { id: "pm25", label: "PM2.5", vars: ["pm25"], legendVar: "pm25", tileVar: "pm25", decimals: 0, icon: "⁘" },
+  { id: "pm10", label: "PM10", vars: ["pm10"], legendVar: "pm10", tileVar: "pm10", decimals: 0, icon: "⁙" },
+  { id: "dust", label: "Dust", vars: ["dust"], legendVar: "dust", tileVar: "dust", decimals: 0, icon: "∴" },
+  { id: "smoke_aod", label: "Smoke haze", vars: ["smoke_aod"], legendVar: "smoke_aod", tileVar: "smoke_aod", decimals: 2, icon: "≀" },
+  { id: "aod", label: "Haze", vars: ["aod"], legendVar: "aod", tileVar: "aod", decimals: 2, icon: "◑" },
 ];
 
 export const WIND_VARS: [string, string] = ["u10", "v10"];
@@ -107,7 +113,17 @@ export function servable(id: string, catalog: readonly VariableInfo[], stored: r
   return !!v?.derived_from?.length && v.derived_from.every((d) => stored.includes(d));
 }
 
-/** The layers a run can draw: every variable they fetch or colour by is servable. */
-export function layersFor(catalog: readonly VariableInfo[], stored: readonly string[]): ColorLayerDef[] {
-  return COLOR_LAYERS.filter((l) => [...l.vars, l.legendVar, l.tileVar].every((id) => servable(id, catalog, stored)));
+/** A run's variables: its model's catalog and what the run stores. */
+export interface RunVars {
+  catalog: readonly VariableInfo[];
+  stored: readonly string[];
+}
+
+/**
+ * The layers a run can draw (every variable they fetch or colour by is servable), and those another
+ * model's run can draw over it, such as air quality.
+ */
+export function layersFor(catalog: readonly VariableInfo[], stored: readonly string[], overlays: readonly RunVars[] = []): ColorLayerDef[] {
+  const can = (l: ColorLayerDef, r: RunVars) => [...l.vars, l.legendVar, l.tileVar].every((id) => servable(id, r.catalog, r.stored));
+  return COLOR_LAYERS.filter((l) => can(l, { catalog, stored }) || overlays.some((o) => can(l, o)));
 }

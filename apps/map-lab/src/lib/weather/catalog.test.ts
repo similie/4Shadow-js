@@ -42,4 +42,12 @@ describe("layers a run can draw", () => {
     expect(ids).toEqual(expect.arrayContaining(["t2m", "wind", "wet_bulb"]));
     expect(ids).not.toContain("radar");
   });
+
+  it("adds the layers another model's run can draw over it, such as air quality", () => {
+    const air = { catalog: [v("pm25"), v("aod_om"), v("aod_bc"), v("smoke_aod", ["aod_om", "aod_bc"])], stored: ["pm25", "aod_om", "aod_bc"] };
+    const ids = layersFor(catalog, ["t2m", "rh2m", "u10", "v10"], [air]).map((l) => l.id);
+    expect(ids).toEqual(expect.arrayContaining(["t2m", "wind", "pm25", "smoke_aod"]));
+    expect(ids).not.toContain("pm10");
+    expect(ids.indexOf("pm25")).toBeGreaterThan(ids.indexOf("t2m")); // menu order stays the catalog's
+  });
 });

@@ -6,7 +6,8 @@ import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { basemapPaint, basemapStyle, PALETTES, WEATHER_BEFORE, type MapTheme } from "./basemap";
 import { FieldCache, type FieldRequest } from "./cache";
 import { Crossfade } from "./crossfade";
-import { COLOR_LAYERS, WIND_VARS, type ColorLayerDef } from "./catalog";
+import { COLOR_LAYERS, servable, WIND_VARS, type ColorLayerDef } from "./catalog";
+import { creditFor } from "./credit";
 import { FieldLayer, type FieldFrames } from "./field-layer";
 import { IsobarJobs, type PressureMap } from "./isobar-jobs";
 import { ParticleLayer } from "./particle-layer";
@@ -60,6 +61,17 @@ export interface WeatherMapOptions {
  * A MapLibre map with 4Shadow weather on it: a colour layer, wind particles, isobars and
  * pressure centres, all drawn from the API's raw fields, moving smoothly through forecast time.
  */
+/**
+ * A model run the map draws from, with its steps and variables. The main one is the weather model's;
+ * an overlay is another model's (air quality) whose colour layers draw over the main run's particles
+ * and isobars.
+ */
+interface Source {
+  run: RunDetail;
+  times: number[];
+  catalog: Map<string, VariableInfo>;
+}
+
 export class WeatherMap {
   readonly map: MapLibreMap;
   readonly cache: FieldCache;
@@ -80,6 +92,8 @@ export class WeatherMap {
   /** The area fetched at full resolution, or null (zoomed out, or the global grid is already full). */
   private detailBox: [number, number, number, number] | null = null;
   private pressure: Field | null = null;
+  private overlays: Source[] = [];
+  private credit = "";
   /** Isobars and H/L markers of the two steps around the time, crossfaded. */
   private readonly isobarFade = new Crossfade<PressureMap>((slot, m) => {
     (this.map.getSource(`isobars-${slot}`) as GeoJSONSource).setData(m.lines);
@@ -129,7 +143,8 @@ export class WeatherMap {
       renderWorldCopies: true,
       attributionControl: {
         compact: true,
-        customAttribution: "Forecast: NOAA via 4Shadow · Places: GeoNames (CC BY 4.0)",
+        // The forecast's own credit comes from the runs in view (see setCredit).
+        customAttribution: "Places: GeoNames (CC BY 4.0)",
       },
     });
     this.map.touchZoomRotate.disableRotation();
@@ -232,14 +247,53 @@ export class WeatherMap {
   }
 
   variable(id: string): VariableInfo | undefined {
-    return this.catalog.get(id);
+    return this.catalog.get(id) ?? this.overlays.find((o) => o.catalog.has(id))?.catalog.get(id);
   }
 
   setRun(run: RunDetail): void {
     this.run = run;
     this.times = run.valid_times.map((t) => Date.parse(t));
     this.time = this.clampTime(this.time || Date.now());
+    if (!this.mainServes(["mslp"])) this.pressure = null;
+    this.applyVisibility();
     this.refresh();
+  }
+
+  /**
+   * Other models whose colour layers the map can draw (air quality, which has no wind or pressure of
+   * its own): a layer the main run can't serve comes from the first of these that can. Its frames
+   * follow the main timeline; outside the overlay's own steps the layer is left blank.
+   */
+  setOverlays(list: Array<{ run: RunDetail; variables: VariableInfo[] }>): void {
+    this.overlays = list.map(({ run, variables }) => ({
+      run,
+      times: run.valid_times.map((t) => Date.parse(t)),
+      catalog: new Map(variables.map((v) => [v.id, v])),
+    }));
+    this.refresh();
+  }
+
+  private main(): Source | null {
+    return this.run ? { run: this.run, times: this.times, catalog: this.catalog } : null;
+  }
+
+  private serves(src: Source, ids: readonly string[]): boolean {
+    const catalog = [...src.catalog.values()];
+    return ids.every((id) => servable(id, catalog, src.run.variables));
+  }
+
+  /** Whether the weather run has these variables (an air-quality run has no wind or pressure). */
+  private mainServes(ids: readonly string[]): boolean {
+    const main = this.main();
+    return !!main && this.serves(main, ids);
+  }
+
+  /** Where a colour layer's data comes from: the main run if it has the layer, else an overlay. */
+  private sourceFor(def: ColorLayerDef): Source | null {
+    const ids = [...def.vars, def.legendVar];
+    const main = this.main();
+    if (main && this.serves(main, ids)) return main;
+    return this.overlays.find((o) => this.serves(o, ids)) ?? null;
   }
 
   get timeRange(): [number, number] {
@@ -373,11 +427,14 @@ export class WeatherMap {
     requestAnimationFrame(this.tick);
   };
 
-  /** Indices of the steps around the current time and how far between them it is. */
-  private bracket(): { ia: number; ib: number; t: number } | null {
-    const ts = this.times;
+  /**
+   * Indices of the steps around the current time and how far between them it is. Before the first
+   * step or after the last, the nearest end, except for an overlay, which then has nothing to show.
+   */
+  private bracket(ts: number[] = this.times, clamp = true): { ia: number; ib: number; t: number } | null {
     if (!ts.length) return null;
     const T = this.time;
+    if (!clamp && (T < ts[0]! || T > ts[ts.length - 1]!)) return null;
     if (T <= ts[0]!) return { ia: 0, ib: 0, t: 0 };
     if (T >= ts[ts.length - 1]!) return { ia: ts.length - 1, ib: ts.length - 1, t: 0 };
     let lo = 0;
@@ -396,27 +453,28 @@ export class WeatherMap {
     return b ? (b.t < 0.5 ? b.ia : b.ib) : null;
   }
 
-  private request(vars: string[], index: number, stride: number, bbox?: FieldRequest["bbox"]): FieldRequest {
-    return { model: this.run!.model, run: this.run!.run, hour: this.run!.forecast_hours[index]!, vars, stride, bbox };
+  private request(src: Source, vars: string[], index: number, stride: number, bbox?: FieldRequest["bbox"]): FieldRequest {
+    return { model: src.run.model, run: src.run.run, hour: src.run.forecast_hours[index]!, vars, stride, bbox };
   }
 
   /** The two steps' fields for these variables if loaded (loading them, and a few ahead, if not). */
-  private framesFor(vars: string[], stride: number, bbox?: FieldRequest["bbox"]): FieldFrames | null {
-    const b = this.bracket();
-    if (!b || !this.run) return null;
-    const ra = this.request(vars, b.ia, stride, bbox);
-    const rb = this.request(vars, b.ib, stride, bbox);
+  private framesFor(vars: string[], stride: number, bbox?: FieldRequest["bbox"], src = this.main()): FieldFrames | null {
+    if (!src) return null;
+    const b = this.bracket(src.times, src.run === this.run);
+    if (!b) return null;
+    const ra = this.request(src, vars, b.ia, stride, bbox);
+    const rb = this.request(src, vars, b.ib, stride, bbox);
     const fa = this.cache.get(ra);
     const fb = b.ib === b.ia ? fa : this.cache.get(rb);
     if (!fa) this.cache.prefetch(ra);
     if (!fb) this.cache.prefetch(rb);
     // Playback loops, so near the end it looks ahead into the first steps.
-    const n = this.times.length;
+    const n = src.times.length;
     const ahead = Math.min(this.playing ? PLAY_AHEAD : 1, n - 1);
     for (let k = 1; k <= ahead && this.cache.loading < 6; k++) {
       const next = b.ib + k;
       if (next >= n && !this.playing) break;
-      this.cache.prefetch(this.request(vars, next % n, stride, bbox));
+      this.cache.prefetch(this.request(src, vars, next % n, stride, bbox));
     }
     if (!fa || !fb) return null;
     return { a: fa, b: b.ib === b.ia ? null : fb, t: b.t };
@@ -425,11 +483,12 @@ export class WeatherMap {
   /** The fields already loaded for the steps playback reaches next. */
   private loadedAhead(vars: string[], stride: number): Field[] {
     const b = this.bracket();
-    if (!b || !this.run || !this.playing) return [];
+    const main = this.main();
+    if (!b || !main || !this.playing) return [];
     const n = this.times.length;
     const out: Field[] = [];
     for (let k = 1; k <= Math.min(PLAY_AHEAD, n - 1); k++) {
-      const f = this.cache.get(this.request(vars, (b.ib + k) % n, stride));
+      const f = this.cache.get(this.request(main, vars, (b.ib + k) % n, stride));
       if (f) out.push(f);
     }
     return out;
@@ -442,15 +501,18 @@ export class WeatherMap {
 
     // Colour layer: switch only once the new variable's data is here, so nothing flashes.
     const def = this.layer;
-    const info = def ? this.catalog.get(def.legendVar) : undefined;
-    if (def && info?.legend) {
-      const frames = this.framesFor(def.vars, this.stride);
+    const src = def ? this.sourceFor(def) : null;
+    const info = def && src ? src.catalog.get(def.legendVar) : undefined;
+    // An overlay's run covers less time than the weather run: outside it there is nothing to draw.
+    const inRange = !!src && (src.run === this.run || !!this.bracket(src.times, false));
+    if (def && src && info?.legend && inRange) {
+      const frames = this.framesFor(def.vars, this.stride, undefined, src);
       if (frames) {
         // Zoomed in: the area in view at full resolution, drawn over the global field where it covers.
         let detail: FieldFrames | null = null;
         let hold = false;
         if (this.detailBox) {
-          detail = this.framesFor(def.vars, 1, this.detailBox);
+          detail = this.framesFor(def.vars, 1, this.detailBox, src);
           if (!detail) {
             complete = false;
             const prev = this.shown;
@@ -470,7 +532,7 @@ export class WeatherMap {
           this.shown = { layer: def, frames, detail };
         }
       } else complete = false;
-    } else if (!def) {
+    } else if (!def || !src || !inRange) {
       this.fieldLayer.setFrames(null);
       this.shown = null;
     }
@@ -490,21 +552,24 @@ export class WeatherMap {
       this.windFrames = null;
     } else {
       this.flowFrames = null;
-      if (this.particles) {
-        const winds = def?.winds ?? WIND_VARS;
+      const winds = def?.winds ?? WIND_VARS;
+      if (this.particles && this.mainServes(winds)) {
         const frames = this.framesFor(winds, this.stride);
         if (frames) {
           this.windFrames = frames;
           this.windVars = winds;
           this.particleLayer.setFrames(frames, winds);
         } else complete = false;
-      } else this.windFrames = null;
+      } else {
+        this.windFrames = null;
+        this.particleLayer.setFrames(null);
+      }
     }
     if (!this.particles) this.particleLayer.setFrames(null);
 
     // Isobars and H/L on a 1° grid: the two steps around the time, crossfaded. Their contours
     // are computed in a worker as soon as each step's field arrives.
-    if (this.showIsobars) {
+    if (this.showIsobars && this.mainServes(["mslp"])) {
       const frames = this.framesFor(["mslp"], ISOBAR_STRIDE);
       for (const f of this.loadedAhead(["mslp"], ISOBAR_STRIDE)) this.isobarJobs.request(f);
       const b = frames ? (frames.b ?? frames.a) : null;
@@ -529,9 +594,9 @@ export class WeatherMap {
 
     // The server's tiles, to compare: also the two steps around the time, crossfaded. Playback
     // waits until both are loaded.
-    const b = this.bracket();
-    if (this.compare && def && b) {
-      const run = this.run;
+    const b = src ? this.bracket(src.times, src.run === this.run) : null;
+    if (this.compare && def && src && b) {
+      const run = src.run;
       const url = (k: number) => this.client.tileUrl({ variable: def.tileVar, time: run.forecast_hours[k]!, run: run.run, model: run.model });
       const [ua, ub] = [url(b.ia), url(b.ib)];
       this.setTileOpacity(this.tileFade.show(ua, ua, ub, ub, b.t));
@@ -540,7 +605,23 @@ export class WeatherMap {
       }
     }
     this.complete = complete;
+    this.setCredit(src && src.run !== this.run && inRange ? [this.run, src.run] : [this.run]);
     this.status();
+  }
+
+  /**
+   * Credit the models in view in the map's attribution, in their licence's words where it asks for
+   * them (ECMWF's data: CC BY 4.0). A source's attribution shows while a visible layer uses it, so an
+   * empty source and layer carry it, replaced when the text changes.
+   */
+  private setCredit(runs: RunDetail[]): void {
+    const text = [...new Set(runs.map(creditFor))].join(" · ");
+    if (text === this.credit || !this.loaded) return;
+    this.credit = text;
+    if (this.map.getLayer("forecast-credit")) this.map.removeLayer("forecast-credit");
+    if (this.map.getSource("forecast-credit")) this.map.removeSource("forecast-credit");
+    this.map.addSource("forecast-credit", { type: "geojson", data: EMPTY, attribution: text });
+    this.map.addLayer({ id: "forecast-credit", type: "fill", source: "forecast-credit" });
   }
 
   /** Set a paint property, skipping MapLibre's work when it hasn't visibly changed. */
@@ -582,7 +663,7 @@ export class WeatherMap {
     if (!this.loaded) return;
     const vis = (on: boolean) => (on ? "visible" : "none");
     for (const slot of SLOTS) {
-      for (const id of ISOBAR_LAYERS) this.map.setLayoutProperty(`${id}-${slot}`, "visibility", vis(this.showIsobars));
+      for (const id of ISOBAR_LAYERS) this.map.setLayoutProperty(`${id}-${slot}`, "visibility", vis(this.showIsobars && this.mainServes(["mslp"])));
       const tiles = `server-tiles-${slot}`;
       if (this.map.getLayer(tiles)) this.map.setLayoutProperty(tiles, "visibility", vis(this.compare));
     }

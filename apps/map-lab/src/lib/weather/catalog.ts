@@ -1,3 +1,5 @@
+import type { VariableInfo } from "@similie/4shadow";
+
 /** The colour layers the lab offers, in menu order. */
 export interface ColorLayerDef {
   id: string;
@@ -94,3 +96,18 @@ export const COLOR_LAYERS: ColorLayerDef[] = [
 ];
 
 export const WIND_VARS: [string, string] = ["u10", "v10"];
+
+/**
+ * Whether a run can serve a variable: stored in it, or computed from variables it stores. The
+ * catalog lists every variable the model has; a run made before one was added lacks it.
+ */
+export function servable(id: string, catalog: readonly VariableInfo[], stored: readonly string[]): boolean {
+  if (stored.includes(id)) return true;
+  const v = catalog.find((x) => x.id === id);
+  return !!v?.derived_from?.length && v.derived_from.every((d) => stored.includes(d));
+}
+
+/** The layers a run can draw: every variable they fetch or colour by is servable. */
+export function layersFor(catalog: readonly VariableInfo[], stored: readonly string[]): ColorLayerDef[] {
+  return COLOR_LAYERS.filter((l) => [...l.vars, l.legendVar, l.tileVar].every((id) => servable(id, catalog, stored)));
+}

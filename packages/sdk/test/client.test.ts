@@ -18,6 +18,17 @@ describe("ForeshadowClient", () => {
     expect((init!.headers as Record<string, string>)["api-key"]).toBe("k1");
   });
 
+  it("asks another model at its own path, and GFS at /v2/forecast", async () => {
+    const { c, fetch } = client(() => jsonResponse({}));
+    await c.forecast({ lat: 1, lon: 2 }, { model: "aigfs", hours: 6 });
+    await c.forecast({ lat: 1, lon: 2 }, { model: "gfs" });
+    const [aigfs, gfs] = fetch.mock.calls.map(([url]) => new URL(String(url)));
+    expect(aigfs!.pathname).toBe("/v2/aigfs/forecast");
+    expect(Object.fromEntries(aigfs!.searchParams)).toEqual({ lat: "1", lon: "2", hours: "6" });
+    expect(gfs!.pathname).toBe("/v2/forecast");
+    expect(gfs!.searchParams.has("model")).toBe(false);
+  });
+
   it("accepts place names", async () => {
     const { c, fetch } = client(() => jsonResponse({}));
     await c.forecast("Same, Timor-Leste");

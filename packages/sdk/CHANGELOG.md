@@ -7,6 +7,7 @@ This package follows [semantic versioning](https://semver.org). Until 1.0, a min
 - `Model` names `"aigfs"`, NOAA's AI model, next to `"gfs"`. Pass it as `model` to `forecast()`, `variables()`, `runs()`, `run()`, `field()` and `tileUrl()` where the API serves it.
 - `VariablesResponse` has the model's `title` and `description`; `VariableInfo` has `land_only` for variables that fields and tiles leave empty over water.
 - `Health.status` can be `"degraded"`: GFS is in, another model has no run yet.
+- `forecast({ model })` calls the model's own path, `/v2/aigfs/forecast`, instead of sending `model` to `/v2/forecast`, which now answers from GFS only. On api.4shadow.io, AIGFS is on some plans; a key without it gets a 403 `plan_does_not_include_route`.
 
 ## 0.1.0
 

@@ -44,6 +44,7 @@ export interface ForecastOptions extends RequestOptions {
   daily?: boolean;
   /** "latest" (default) or a run id YYYYMMDDHH. */
   run?: string;
+  /** "gfs" (default) or another model the API serves, e.g. "aigfs". On api.4shadow.io, AIGFS is on some plans. */
   model?: Model;
 }
 
@@ -196,7 +197,9 @@ export class ForeshadowClient {
   forecast(where: Where, options: ForecastOptions = {}): Promise<Forecast> {
     const { signal, vars, hours, start, tz, daily, run, model } = options;
     const loc = typeof where === "string" ? { q: where } : "q" in where ? { q: where.q } : { lat: where.lat, lon: where.lon };
-    return this.json<Forecast>("/v2/forecast", { ...loc, vars: vars?.join(","), hours, start, tz, daily, run, model }, { signal });
+    // GFS at /v2/forecast; other models at a path of their own, which an API key's plan may or may not include.
+    const path = !model || model === "gfs" ? "/v2/forecast" : `/v2/${model}/forecast`;
+    return this.json<Forecast>(path, { ...loc, vars: vars?.join(","), hours, start, tz, daily, run }, { signal });
   }
 
   /** Places matching a name, best match first. */

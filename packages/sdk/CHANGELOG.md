@@ -2,7 +2,9 @@
 
 This package follows [semantic versioning](https://semver.org). Until 1.0, a minor version may change the API; a patch never does.
 
-## Unreleased
+## 0.2.0 (2026-11-16)
+
+A second model, NOAA's AI model AIGFS, next to GFS.
 
 - `Model` names `"aigfs"`, NOAA's AI model, next to `"gfs"`. Pass it as `model` to `forecast()`, `variables()`, `runs()`, `run()`, `field()` and `tileUrl()` where the API serves it.
 - `VariablesResponse` has the model's `title` and `description`; `VariableInfo` has `land_only` for variables that fields and tiles leave empty over water.

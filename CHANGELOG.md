@@ -10,6 +10,7 @@ Notable changes to the map lab and the repository. The SDK's changes, by version
 - **Model switch**: GFS or AIGFS, NOAA's AI model, when the API serves it. The layer list shows only the chosen model's layers, and point forecasts follow the switch.
 - Fire weather and soil moisture are drawn on land only, clipped to the basemap's coastline.
 - Hovering a layer in the menu says what it shows.
+- Point forecasts from AIGFS use the API's per-model path, `/v2/aigfs/forecast`, which public mode forwards too. On api.4shadow.io AIGFS is on the Solo and Norris plans; with another key the switch stays hidden.
 - The layer list follows the selected run too: a run made before a variable was added doesn't offer its layer. If the selected layer drops out on a run or model change, the map falls back to wind.
 
 ## 2026-11-16

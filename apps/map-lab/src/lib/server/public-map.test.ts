@@ -37,6 +37,9 @@ describe("public map door", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("public, max-age=300");
     expect(up.calls).toEqual([{ url: `${API}/v2/forecast?lat=-8.55&lon=125.56&hours=48`, key: "secret-key" }]);
+    expect((await get("v2/aigfs/forecast?lat=1&lon=2&model=gfs")).status).toBe(200); // another model's own path
+    expect(up.calls[1]).toEqual({ url: `${API}/v2/aigfs/forecast?lat=1&lon=2`, key: "secret-key" });
+    expect((await get("v2/AIGFS/forecast?lat=1&lon=2")).status).toBe(404);
   });
 
   it("refuses writes, early warnings and anything the map doesn't use", async () => {

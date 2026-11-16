@@ -83,8 +83,8 @@ export const RULES: Rule[] = [
   },
   {
     name: "forecast",
-    path: /^v2\/forecast$/,
-    params: ["lat", "lon", "vars", "hours", "start", "tz", "daily", "run", "model"],
+    path: new RegExp(`^v2/(${MODEL}/)?forecast$`), // GFS's, or another model's own
+    params: ["lat", "lon", "vars", "hours", "start", "tz", "daily", "run"],
     cache: "public, max-age=300",
     limit: [120, 600],
     check: (q) =>

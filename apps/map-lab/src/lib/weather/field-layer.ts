@@ -131,13 +131,19 @@ export class FieldLayer implements CustomLayerInterface {
   private colors = new Float32Array(MAX_STOPS * 4);
   private nstops = 0;
   private visible: [number, number] = [-Infinity, Infinity];
-  private readonly land: [number, number, number, number];
+  private land: [number, number, number, number];
   opacity = 0.85;
 
   /** `land`: the colour painted under everything not yet opaque (the basemap has no background). */
   constructor(id = "weather-field", land = "#262b33") {
     this.id = id;
     this.land = parseColor(land);
+  }
+
+  /** The colour painted under the weather (the theme's land). */
+  setLand(land: string): void {
+    this.land = parseColor(land);
+    this.map?.triggerRepaint();
   }
 
   /** What to draw: the variable(s) and its colour legend. */

@@ -9,12 +9,21 @@
   ],
   "scripts": {
     "build": "npm run build -w packages/sdk",
-    "test": "npm test -w packages/sdk",
+    "build:lab": "npm run build -w packages/sdk && npm run build -w apps/map-lab",
+    "test": "npm test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run format:check && npm run typecheck && npm test",
     "lab": "npm run dev -w apps/map-lab",
-    "tunnel": "npm run tunnel -w apps/map-lab"
+    "tunnel": "npm run tunnel -w apps/map-lab",
+    "screenshots": "node apps/map-lab/scripts/screenshots.mjs --out docs/images"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "prettier": "^3.10.1",
+    "prettier-plugin-svelte": "^3.5.2"
   }
 }

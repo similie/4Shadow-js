@@ -15,6 +15,10 @@
   import { COLOR_LAYERS } from "#lib/weather/catalog.ts";
   import { WeatherMap, type Readout, type Status } from "#lib/weather/weather-map.ts";
 
+  let { data } = $props();
+  /** A public map (MAP_MODE=public) shows the weather only: early warnings belong to the key's owner. */
+  const publicMap = $derived(data.mode === "public");
+
   let container: HTMLDivElement;
   let wm = $state.raw<WeatherMap | null>(null);
   let marker: maplibregl.Marker | null = null;
@@ -24,11 +28,15 @@
   let isobarsOn = $state(true);
   let compare = $state(false);
   let globe = $state(false);
+  /** Day basemap (light land and sea, dark particles); the panels stay as they are. */
+  let day = $state(false);
   // The global grid. Zoomed in, the area in view is fetched at 0.25° on top of it.
   let stride = $state(2);
   let opacity = $state(0.85);
   let speed = $state(3);
   let settingsOpen = $state(false);
+  /** Height of the bottom stack (legend, readout, timeline): the side panels end above it. */
+  let bottomHeight = $state(0);
 
   let run = $state.raw<RunDetail | null>(null);
   let runs: RunSummary[] = $state.raw([]);
@@ -70,7 +78,7 @@
     alertLayers = al;
     if (import.meta.env.DEV) (window as unknown as { weatherMap: WeatherMap }).weatherMap = w; // for poking at in devtools
     load(w);
-    alerts.start();
+    if (data.mode !== "public") alerts.start();
     const unalign = alignBottomBar(container);
     return () => {
       unalign();
@@ -137,6 +145,7 @@
   $effect(() => wm?.setStride(stride));
   $effect(() => wm?.setOpacity(opacity));
   $effect(() => wm?.setProjection(globe ? "globe" : "mercator"));
+  $effect(() => wm?.setTheme(day ? "light" : "dark"));
 
   // Push alerts into the map: areas, events, and which events are on at the map's time (by the hour).
   const hour = $derived(Math.round(time / 3_600_000) * 3_600_000);
@@ -231,12 +240,16 @@
 
 <div class="map" bind:this={container}></div>
 
-<div class="top-left">
+<div class="top-left" style:--bottom-stack="{bottomHeight}px">
   <div class="brand">
-    <svg viewBox="0 0 32 32" aria-hidden="true"
-      ><path d="M5 13c4-3 8-3 12 0s8 3 10 0M5 19c4-3 8-3 12 0s8 3 10 0" stroke="#7fd1ff" stroke-width="2.6" fill="none" stroke-linecap="round" /></svg
+    <a class="logo" href="https://4shadow.io" target="_blank" rel="noreferrer"
+      ><img src="/brand/4shadow-wordmark-dark.svg" alt="4Shadow" /><span class="tag">{publicMap ? "Live map" : "Map lab"}</span></a
     >
-    <span>4Shadow <em>map lab</em></span>
+    {#if publicMap}
+      <a class="warnings" href="https://4shadow.io/signup" target="_blank" rel="noreferrer" title="The data on this map comes from the 4Shadow API"
+        >Get a free API key</a
+      >
+    {:else}
     <button
       class="warnings"
       class:active={alertsOpen}
@@ -247,6 +260,7 @@
       Early warnings
       {#if eventCount}<span class="count num" style:background={ALERT_COLORS.now}>{eventCount}</span>{/if}
     </button>
+    {/if}
   </div>
   <Search onPick={picked} />
   {#if alertsOpen}
@@ -287,6 +301,7 @@
   >
   <label class="toggle"><input type="checkbox" bind:checked={isobarsOn} /> Isobars</label>
   <label class="toggle"><input type="checkbox" bind:checked={globe} /> Globe</label>
+  <label class="toggle"><input type="checkbox" bind:checked={day} /> Day map</label>
   <button class="more" onclick={() => (settingsOpen = !settingsOpen)} aria-expanded={settingsOpen}>
     {settingsOpen ? "Fewer" : "More"} settings
   </button>
@@ -298,7 +313,7 @@
       <label title="Grid of the whole-world data. Zoomed in, the area in view also loads at 0.25°."
         >Global grid
         <select bind:value={stride}>
-          <option value={1}>0.25° (full)</option>
+          {#if !publicMap}<option value={1}>0.25° (full)</option>{/if}
           <option value={2}>0.5° + detail</option>
           <option value={4}>1° + detail</option>
         </select>
@@ -323,12 +338,16 @@
           </select>
         </label>
       {/if}
-      <p class="api">API: {DIRECT ? API_URL : `${alerts.rig?.apiUrl ?? "…"}, through the lab's server`}</p>
+      <p class="api">
+        {#if publicMap}Data: the 4Shadow API, through this site's server{:else}API: {DIRECT
+            ? API_URL
+            : `${alerts.rig?.apiUrl ?? "…"}, through the lab's server`}{/if}
+      </p>
     </div>
   {/if}
 </nav>
 
-<div class="bottom">
+<div class="bottom" bind:offsetHeight={bottomHeight}>
   <div class="info">
     {#if layer && legendInfo?.legend}
       <Legend info={legendInfo} label={layer.label} />
@@ -368,10 +387,17 @@
     left: 12px;
     width: 420px;
     max-width: calc(100vw - 24px);
+    /* Down to the legend and timeline, not over them. */
+    max-height: calc(100vh - 12px - var(--controls-bottom, 44px) - var(--bottom-stack, 0px) - 10px);
     display: flex;
     flex-direction: column;
     gap: 8px;
     z-index: 2;
+  }
+  .top-left > :global(aside.panel) {
+    max-height: none;
+    min-height: 0;
+    flex: 0 1 auto;
   }
   .brand {
     display: flex;
@@ -381,14 +407,34 @@
     letter-spacing: 0.01em;
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
   }
-  .brand svg {
-    width: 24px;
-    height: 24px;
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px 7px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: var(--shadow);
+    text-decoration: none;
+    text-shadow: none;
   }
-  .brand em {
-    font-style: normal;
-    font-weight: 400;
+  .logo img {
+    height: 17px;
+    width: auto;
+    display: block;
+  }
+  .tag {
+    font: 500 10px/1 ui-monospace, "SF Mono", Menlo, monospace;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
     color: var(--text-2);
+  }
+  a.warnings {
+    color: inherit;
+    text-decoration: none;
   }
   .warnings {
     margin-left: auto;

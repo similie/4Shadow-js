@@ -3,6 +3,9 @@
  * that 4Shadow can deliver webhooks, but the API proxy would hand anyone your key, and Vite would serve
  * your files. So a request from anywhere but this machine may only deliver a webhook.
  *
+ * A public map (`MAP_MODE=public`, see public-map.ts) is the other way round: anyone may read pages and
+ * map data, nobody may write, and the early-warning rig (webhooks, its feed) is closed.
+ *
  * Used by the Vite dev server (vite.config.ts, ahead of Vite's own file serving) and by SvelteKit
  * (src/hooks.server.ts, for `npm start`).
  */
@@ -26,6 +29,11 @@ export function isLocal(host: string | undefined, headers: HeaderBag): boolean {
   return LOCAL_HOSTS.has(hostname) && !FORWARDED.some((h) => has(headers, h));
 }
 
-export function allowed(method: string, path: string, host: string | undefined, headers: HeaderBag): boolean {
+export type MapMode = "local" | "public";
+
+export function allowed(method: string, path: string, host: string | undefined, headers: HeaderBag, mode: MapMode = "local"): boolean {
+  if (mode === "public") {
+    return (method === "GET" || method === "HEAD") && !path.startsWith("/api/rig") && !path.startsWith("/hooks/");
+  }
   return isLocal(host, headers) || (method === "POST" && path === WEBHOOK_PATH);
 }

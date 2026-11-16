@@ -16,6 +16,7 @@
 
 <p align="center">
   <a href="https://github.com/similie/4Shadow-js/actions/workflows/ci.yml"><img src="https://github.com/similie/4Shadow-js/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
+  <a href="https://www.npmjs.com/package/@similie/4shadow"><img src="https://img.shields.io/npm/v/@similie/4shadow?color=F08A3C&label=npm" alt="npm version" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-3B9DD6" alt="MIT license" /></a>
   <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white" alt="TypeScript, strict" />
   <img src="https://img.shields.io/badge/node-%E2%89%A522-3FBF7F?logo=node.js&logoColor=white" alt="Node 22 or newer" />

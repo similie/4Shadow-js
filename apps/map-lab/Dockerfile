@@ -5,7 +5,7 @@
 #   docker run --rm -p 3000:3000 -e FORESHADOW_API_KEY=your-key 4shadow-map
 #
 # Nothing secret is baked into the image: settings are read when the server starts.
-FROM node:24-bookworm-slim AS build
+FROM node:26-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/sdk/package.json packages/sdk/
@@ -17,7 +17,7 @@ RUN npm run build -w packages/sdk \
  && npm run build -w apps/map-lab \
  && npm prune --omit=dev --no-audit --no-fund
 
-FROM node:24-bookworm-slim
+FROM node:26-bookworm-slim
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000 \

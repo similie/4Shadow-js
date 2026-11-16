@@ -1,6 +1,8 @@
 # 4Shadow map lab
 
-A local SvelteKit app for building and testing 4Shadow weather maps. It draws Windy-style maps from the API's raw fields:
+A SvelteKit app that draws live weather maps from the 4Shadow API's raw fields. Run it locally as a lab for building maps and early warnings, or [deploy it](../../docs/deploy.md) as a public weather map.
+
+![Wind over Australia and the Maritime Continent](../../docs/images/hero.webp)
 
 - **Colour layers on the GPU** for wind, gusts, temperature, rain, clouds, pressure, waves, swell, wave period, humidity, dew point, CAPE, water vapour, visibility, sunshine and snow depth. The colours are the API's own legends, so they match the server's PNG tiles. They are smooth between grid points.
 - **Animated particles**, moved on the GPU and leaving fading trails. They follow the wind, or on the wave layers, the waves: toward where the waves are heading, at their group speed (about 0.78 m/s per second of period), so long swell outruns short wind waves.
@@ -8,7 +10,7 @@ A local SvelteKit app for building and testing 4Shadow weather maps. It draws Wi
 - **Waves follow the real coastline.** The wave model's land mask is coarse (0.25° cells), so wave values are spread two cells toward the coast and then clipped to the basemap's water.
 - **Isobars** with labels, and **high/low pressure centres**.
 - **Smooth time.** The colour layers and particles blend their values between forecast steps. Isobars, H/L centres and the server's tiles can't be blended that way, so each has two copies, one for the step before and one for the step after, crossfaded as time moves. A copy gets the next step's data only while it is invisible, so nothing jumps. Data is fetched four steps ahead (past the end, too, since playback loops); the isobars for those steps are computed in a worker as their data arrives. Playback waits for all of it, keeping the last full picture meanwhile, and never skips.
-- **Flat map or globe.**
+- **Flat map or globe**, on a **night or day basemap**.
 - **Click for a point forecast**: current conditions (with waves at sea), a meteogram with a wave row at sea (click an hour to show it on the map), daily and hourly tables.
 - **Place search** with GeoNames names, or type `lat, lon`.
 - **Server tiles** setting: shows the server's PNG tiles in place of the WebGL layer, to compare the two.
@@ -36,6 +38,17 @@ New alerts in the lab send their webhooks there. To use ngrok or another tunnel 
 To have the browser call an API directly instead of through the lab's server, set `VITE_FORESHADOW_URL`; see `.env.example`.
 
 Keys: <kbd>Space</kbd> plays and pauses, <kbd>←</kbd>/<kbd>→</kbd> move an hour (with <kbd>Shift</kbd>, a day), <kbd>Esc</kbd> closes the panels. While drawing an area: <kbd>Enter</kbd> closes the polygon, <kbd>Backspace</kbd> removes the last corner, <kbd>Esc</kbd> stops. The map position is kept in the URL.
+
+## Deploy it as a public map
+
+Set `MAP_MODE=public` and anyone can view the map, while your key stays on the server:
+
+```sh
+docker build -f apps/map-lab/Dockerfile -t 4shadow-map .     # from the repository root
+docker run -p 3000:3000 -e FORESHADOW_API_KEY=your-key 4shadow-map
+```
+
+In public mode the server (`src/lib/server/public-map.ts`) forwards only the requests the map makes, with their parameters checked; it limits each visitor and all visitors together, and keeps fields and tiles in a shared memory cache, so each is fetched from 4Shadow once per forecast run. Early warnings and the webhook rig are off, and the page offers "Get a free API key" in their place. The [deploy guide](../../docs/deploy.md) has the settings, a reverse proxy setup and what it costs.
 
 ## Early warnings, end to end
 
@@ -68,7 +81,7 @@ In your own app the receiver is the part to copy: read the raw body, look up the
 | `isobars.ts`                          | Isobars every 4 hPa (d3-contour on a 1° pressure field, smoothed), plus H/L centres.                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `cache.ts`                            | Fetched fields (global, or a `bbox` at full resolution), shared between layers, with prefetching and a size limit.                                                                                                                                                                                                                                                                                                                                                                          |
 | `gl.ts`                               | Shader helpers: MapLibre's projection prelude, grid sampling in GLSL, float textures.                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `basemap.ts`                          | Dark basemap on OpenFreeMap vector tiles. Weather sits under coasts, borders and labels.                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `basemap.ts`                          | Night and day basemaps on OpenFreeMap vector tiles. Weather sits under coasts, borders and labels.                                                                                                                                                                                                                                                                                                                                                                                          |
 
 `src/lib/alerts/` holds the early-warning code:
 
@@ -82,6 +95,18 @@ The panels are in `src/lib/components/alerts/`: `AlertsPanel` (list and detail),
 
 The app uses the SDK's TypeScript source (the `source` export condition), so SDK changes show up here without a rebuild.
 
+`src/lib/server/` holds the server side: `local-only.ts` (who may use the lab's server) and `public-map.ts` (the door for public mode).
+
+## Tests and screenshots
+
+```sh
+npm test -w apps/map-lab          # unit tests (vitest): the public door, the local-only guard, alert geometry,
+                                  # wave motion, isobars and H/L centres, readouts, the layer catalog
+npm run screenshots               # from the repo root, with the lab running: retakes docs/images
+```
+
+The screenshots script drives headless Chrome over the DevTools protocol (no extra packages) and needs `ffmpeg` and `img2webp` for the animation. The images are whatever the latest forecast run shows.
+
 ## Data use
 
 Through the proxy, the map's requests use your key and count against your plan, like any other API use.
@@ -93,7 +118,7 @@ A global field at 0.25° is about 2 MB per variable per step: wind (u + v) is ab
 - Rain and some other GFS fields look blocky at the coast. That comes from the data; the server tiles show the same.
 - GFS-Wave's global grid leaves out the Black and Caspian Seas, so they have no waves.
 - Lakes within about 50 km of the sea pick up the spread sea values.
-- Particles move at a constant screen speed per m/s, like Windy, not at true ground speed.
+- Particles move at a constant screen speed per m/s, not at true ground speed, so they read the same at every zoom.
 - Spreading wave values toward the coast runs on the main thread, so a frame can take up to ~50 ms when a new step arrives during playback. A worker would fix that.
 
 ## Credits

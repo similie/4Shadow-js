@@ -1,6 +1,6 @@
 # @similie/4shadow
 
-A JavaScript and TypeScript client for the [4Shadow](https://4shadow.io) weather forecast API. It works in Node 20+, browsers, Deno and Bun, and has no dependencies.
+A JavaScript and TypeScript client for the [4Shadow](https://4shadow.io) weather forecast API. It works in Node 22+, browsers, Deno and Bun, and has no dependencies.
 
 - **Point forecasts** for any place on Earth: give coordinates or a place name ("Paris", "Same, Timor-Leste").
 - **Place search**, by name or nearest to a point.
@@ -100,7 +100,7 @@ palette.ramp(256); // RGBA lookup texture for a shader
 palette.gradient(); // CSS gradient for a legend
 ```
 
-The [map lab](../../apps/map-lab) uses all of this to build Windy-style maps: GPU colour layers, wind particles, isobars, a globe and time animation.
+The [map lab](../../apps/map-lab) uses all of this to build animated weather maps: GPU colour layers, wind particles, isobars, a globe and time animation.
 
 ## Early warnings
 

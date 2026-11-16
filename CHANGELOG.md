@@ -1,14 +1,10 @@
 # Changelog
 
-Notable changes to the SDK (`@similie/4shadow`) and the map lab. The SDK follows [semantic versioning](https://semver.org); until 1.0, a minor version may change the API.
+Notable changes to the map lab and the repository. The SDK's changes, by version, are in [packages/sdk/CHANGELOG.md](packages/sdk/CHANGELOG.md), which ships with the npm package.
 
 ## Unreleased
 
-### SDK
-
-- Alerts can email up to 10 addresses (`email_to`), and each alert lists its email recipients and whether they've confirmed.
-- Reads the API's error codes: `quota_exceeded` and `rate_limited` errors carry a `code`, and a used-up quota isn't retried.
-- Needs Node 22 or newer (Node 20 reached end of life in April 2026).
+## 2026-11-16
 
 ### Map lab
 
@@ -20,6 +16,8 @@ Notable changes to the SDK (`@similie/4shadow`) and the map lab. The SDK follows
 - Unit tests for the lab, and CI for formatting, types, tests on Node 22, 24 and 26, builds and the Docker image.
 - Fixed: pressure legend ticks read "1k"; H/L markers showed twice while time moved between steps; meteogram day labels overlapped on long forecasts; side panels covered the legend.
 
-## 0.1.0 (not yet published)
+## 2026-11-14
 
-First version of the SDK: point forecasts by coordinates or place name, place search, map tiles, raw gridded fields (`4SF1`) with decoding and colour palettes, early-warning alerts and webhook verification. First version of the map lab: GPU colour layers for 16 variables, wind and wave particles, isobars and H/L centres, a globe, smooth time, point forecasts with a meteogram, place search.
+### Map lab
+
+- First version: GPU colour layers for 16 variables, wind and wave particles, isobars and H/L centres, a globe, smooth time, point forecasts with a meteogram, place search.

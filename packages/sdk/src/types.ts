@@ -1,6 +1,7 @@
 /** Response shapes of the 4Shadow forecast API v2 (https://api.4shadow.io/v2/docs). */
 
-export type Model = "gfs" | (string & {});
+/** A forecast model the API serves: `gfs` always; `aigfs` (NOAA's AI model) where enabled. */
+export type Model = "gfs" | "aigfs" | (string & {});
 
 /** A place from the GeoNames-based place index. */
 export interface Place {
@@ -107,11 +108,17 @@ export interface VariableInfo {
   derived_from?: string[];
   /** Defined over open sea only (sea state from GFS-Wave); missing over land and sea ice. */
   marine?: boolean;
+  /** Meaningful on land only (fire weather): fields and tiles leave water empty; point forecasts keep it. */
+  land_only?: boolean;
   legend?: Legend;
 }
 
 export interface VariablesResponse {
   model: Model;
+  /** The model's name, e.g. "NOAA AIGFS 0.25° (AI)". */
+  title?: string;
+  /** What the model is and how it differs from the others. */
+  description?: string;
   variables: VariableInfo[];
   daily: Array<{ id: string; source: string; aggregation: string; units: string }>;
 }
@@ -141,7 +148,8 @@ export interface RunDetail {
 }
 
 export interface Health {
-  status: "ok" | "unavailable";
+  /** degraded: GFS is in, but another model has no run yet. */
+  status: "ok" | "degraded" | "unavailable";
   version: string;
   models: Record<string, { latest_run: string | null; age_hours?: number; stale?: boolean }>;
 }

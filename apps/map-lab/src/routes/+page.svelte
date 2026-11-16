@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Alert, AlertArea, Place, RunDetail, RunSummary, VariableInfo } from "@similie/4shadow";
+  import type { Alert, AlertArea, Model, Place, RunDetail, RunSummary, VariableInfo, VariablesResponse } from "@similie/4shadow";
   import * as maplibregl from "maplibre-gl";
   import { onMount } from "svelte";
   import { ALERT_COLORS, AlertLayers } from "#lib/alerts/alert-layers.ts";
@@ -38,6 +38,11 @@
   /** Height of the bottom stack (legend, readout, timeline): the side panels end above it. */
   let bottomHeight = $state(0);
 
+  /** Models offered besides GFS, when the API serves them (it answers 404 for one it doesn't). */
+  const EXTRA_MODELS: Model[] = ["aigfs"];
+  let model = $state<Model>("gfs");
+  let models = $state.raw<Array<{ id: Model; title: string; description: string }>>([]);
+
   let run = $state.raw<RunDetail | null>(null);
   let runs: RunSummary[] = $state.raw([]);
   let variables: VariableInfo[] = $state.raw([]);
@@ -57,7 +62,10 @@
   /** Set while an alert is being drawn or edited: map clicks belong to the editor then. */
   let alertEditing = $state<{ alert: Alert | null } | null>(null);
 
-  const layer = $derived(COLOR_LAYERS.find((l) => l.id === layerId) ?? null);
+  // Only the layers the model has: AIGFS has wind, temperature, humidity, pressure and rain.
+  const known = $derived(new Set(variables.map((v) => v.id)));
+  const layers = $derived(COLOR_LAYERS.filter((l) => [...l.vars, l.legendVar, l.tileVar].every((id) => known.has(id))));
+  const layer = $derived(layers.find((l) => l.id === layerId) ?? null);
   const legendInfo = $derived(layer ? variables.find((v) => v.id === layer.legendVar) : undefined);
   const initTime = $derived(run ? Date.parse(run.init_time) : 0);
 
@@ -114,12 +122,13 @@
 
   async function load(w: WeatherMap) {
     try {
-      const [vars, list] = await Promise.all([client.variables(), client.runs()]);
+      const [vars, list] = await Promise.all([client.variables(model), client.runs(model)]);
       variables = vars.variables;
       w.setCatalog(vars.variables);
       runs = list.runs;
       if (!list.latest) throw new Error("The API has no forecast runs yet");
       await selectRun(list.latest);
+      if (!models.length) findModels(vars);
     } catch (e) {
       const rig = DIRECT
         ? null
@@ -133,8 +142,29 @@
     }
   }
 
+  /** Offer a model switch when the API has a run of another model. */
+  async function findModels(gfs: VariablesResponse) {
+    const extra = await Promise.all(
+      EXTRA_MODELS.map((id) =>
+        Promise.all([client.variables(id), client.runs(id)])
+          .then(([v, r]) => (r.latest ? { id, title: v.title ?? id.toUpperCase(), description: v.description ?? "" } : null))
+          .catch(() => null),
+      ),
+    );
+    const found = extra.filter((m) => m !== null);
+    if (found.length) models = [{ id: "gfs", title: gfs.title ?? "NOAA GFS", description: gfs.description ?? "" }, ...found];
+  }
+
+  async function switchModel(id: Model) {
+    if (id === model || !wm) return;
+    model = id;
+    await load(wm);
+    // Keep the layer if the model has it; otherwise wind, which every model has.
+    if (layerId && !layers.some((l) => l.id === layerId)) layerId = "wind";
+  }
+
   async function selectRun(id: string) {
-    const r = await client.run(id);
+    const r = await client.run(id, model);
     run = r;
     steps = r.valid_times.map((t) => Date.parse(t));
     wm?.setRun(r);
@@ -291,18 +321,39 @@
       onClose={() => (alertsOpen = false)}
     />
   {:else if point}
-    <PointPanel lat={point.lat} lon={point.lon} place={point.place} run={run?.run} {time} onClose={closePoint} onPick={seek} />
+    <PointPanel lat={point.lat} lon={point.lon} place={point.place} model={run?.model} run={run?.run} {time} onClose={closePoint} onPick={seek} />
   {/if}
 </div>
 
 <nav class="layers panel" aria-label="Weather layers">
-  {#each COLOR_LAYERS as l (l.id)}
-    <button class:active={layerId === l.id} onclick={() => (layerId = layerId === l.id ? null : l.id)} aria-pressed={layerId === l.id}>
+  {#if models.length > 1}
+    <div class="models" role="group" aria-label="Forecast model">
+      {#each models as m (m.id)}
+        <button
+          class:active={model === m.id}
+          aria-pressed={model === m.id}
+          title={m.description ? `${m.title}: ${m.description}` : m.title}
+          onclick={() => switchModel(m.id)}>{m.id.toUpperCase()}</button
+        >
+      {/each}
+    </div>
+  {/if}
+  {#each layers as l (l.id)}
+    <button
+      class:active={layerId === l.id}
+      title={variables.find((v) => v.id === l.legendVar)?.description}
+      onclick={() => (layerId = layerId === l.id ? null : l.id)}
+      aria-pressed={layerId === l.id}
+    >
       <span class="icon" aria-hidden="true">{l.icon}</span>{l.label}
     </button>
   {/each}
   <hr />
-  <label class="toggle" title={layer?.flow ? "Particles travel with the waves, at their group speed" : "Particles travel with the 10 m wind"}
+  <label
+    class="toggle"
+    title={layer?.flow
+      ? "Particles travel with the waves, at their group speed"
+      : `Particles travel with the ${layer?.winds ? "100 m" : "10 m"} wind`}
     ><input type="checkbox" bind:checked={particles} /> {layer?.flow ? "Wave" : "Wind"} particles</label
   >
   <label class="toggle"><input type="checkbox" bind:checked={isobarsOn} /> Isobars</label>
@@ -506,6 +557,21 @@
     background: var(--accent);
     color: var(--accent-ink);
     font-weight: 600;
+  }
+  .models {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    margin-bottom: 4px;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .layers .models button {
+    flex: 1;
+    justify-content: center;
+    padding: 4px 0;
+    font-size: 12px;
+    letter-spacing: 0.04em;
   }
   .icon {
     width: 18px;

@@ -130,15 +130,19 @@ Anyone can view it; your key stays on the server, and early warnings are off. Th
 
 ```mermaid
 flowchart LR
-  gfs["NOAA GFS and GFS-Wave<br/>0.25°, 4 runs a day"] --> api[("4Shadow API<br/>api.4shadow.io")]
   subgraph browser["Browser"]
-    map["WeatherMap<br/>MapLibre + WebGL2 layers"] --> sdk["@similie/4shadow"]
+    direction TB
+    map["WeatherMap<br/>MapLibre + WebGL2"] --> sdk["@similie/4shadow"]
   end
-  subgraph server["Map server (SvelteKit, Node)"]
-    door["API door<br/>adds your key · checks · limits · cache"]
+  subgraph server["Map server"]
+    door["API door<br/>your key · checks<br/>limits · cache"]
   end
-  sdk -- "fields, tiles, forecasts" --> door -- "api-key" --> api
-  api -. "signed webhooks" .-> hooks["Your webhook endpoint"]
+  subgraph fourshadow["4Shadow"]
+    direction TB
+    gfs["NOAA GFS + GFS-Wave<br/>0.25°, 4 runs a day"] --> api[("api.4shadow.io")]
+  end
+  sdk -- "fields, tiles,<br/>forecasts" --> door -- "api-key" --> api
+  api -. "signed<br/>webhooks" .-> hooks["Your app"]
 ```
 
 - **Fields** are the forecast on the model grid, up to four variables per request, as int16 arrays behind a JSON header (`4SF1`). The SDK decodes them; the map uploads them as float textures and samples them in shaders with the API's own legend colours, so the WebGL layers match the API's PNG tiles.

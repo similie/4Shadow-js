@@ -38,13 +38,24 @@ export function waveFlow(field: Field, dirVar: string, periodVar: string): Field
     v[i] = Math.round((Math.cos(toward) * speed) / SCALE);
   }
   const variable = (id: string, name: string) => ({
-    id, name, units: "m/s", semantics: "instant" as const, scale: SCALE, offset: 0,
+    id,
+    name,
+    units: "m/s",
+    semantics: "instant" as const,
+    scale: SCALE,
+    offset: 0,
   });
   const header: FieldHeader = {
     ...field.header,
     variables: [variable("u", "Wave motion, eastward"), variable("v", "Wave motion, northward")],
   };
-  const flow = new Field(header, new Map([["u", u], ["v", v]]));
+  const flow = new Field(
+    header,
+    new Map([
+      ["u", u],
+      ["v", v],
+    ]),
+  );
   byVars.set(key, flow);
   return flow;
 }

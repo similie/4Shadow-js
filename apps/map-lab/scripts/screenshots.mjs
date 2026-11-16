@@ -59,7 +59,8 @@ class Page {
     if (method === "Network.requestWillBeSent") this.#inflight.add(params.requestId);
     if (method === "Network.loadingFinished" || method === "Network.loadingFailed") this.#inflight.delete(params.requestId);
     if (method?.startsWith("Network.")) this.#lastNetwork = Date.now();
-    if (method === "Runtime.consoleAPICalled" && params.type === "error") console.warn("  page:", params.args.map((a) => a.value ?? a.description).join(" "));
+    if (method === "Runtime.consoleAPICalled" && params.type === "error")
+      console.warn("  page:", params.args.map((a) => a.value ?? a.description).join(" "));
     for (const fn of this.#listeners.get(method) ?? []) fn(params);
   }
 
@@ -124,16 +125,35 @@ const HELPERS = `
 
 const SHOTS = [
   { name: "hero", view: "2.3/-12/138", setup: [] },
-  { name: "globe", view: "2.6/22/-38", setup: [["check", "Globe", true], ["layer", "Temperature"]] },
+  {
+    name: "globe",
+    view: "2.6/22/-38",
+    setup: [
+      ["check", "Globe", true],
+      ["layer", "Temperature"],
+    ],
+  },
   { name: "temperature", view: "3.6/48/12", setup: [["layer", "Temperature"]] },
   { name: "waves", view: "3/-38/130", setup: [["layer", "Waves"]] },
   { name: "rain", view: "3.4/12/112", setup: [["layer", "Rain"]] },
-  { name: "day", view: "3/34/-40", setup: [["check", "Day map", true], ["layer", "Pressure"]] },
+  {
+    name: "day",
+    view: "3/34/-40",
+    setup: [
+      ["check", "Day map", true],
+      ["layer", "Pressure"],
+    ],
+  },
   { name: "point-forecast", view: "5.2/-9/126.5", setup: [["mapClick", 125.57, -8.56]] },
   {
     name: "early-warnings",
     view: "5.2/-9/126.5",
-    setup: [["layer", "Rain"], ["click", "button", "Early warnings"], ["click", "button", "New alert"], ["mapClick", 125.9, -8.8]],
+    setup: [
+      ["layer", "Rain"],
+      ["click", "button", "Early warnings"],
+      ["click", "button", "New alert"],
+      ["mapClick", 125.9, -8.8],
+    ],
   },
 ];
 
@@ -174,19 +194,37 @@ async function animate(page, name, seconds = 4) {
   await sleep(seconds * 1000);
   await page.send("Page.stopScreencast");
   await sleep(300);
-  const fps = Math.max(8, Math.min(30, Math.round(times.length / ((times.at(-1) - times[0]) || 1))));
+  const fps = Math.max(8, Math.min(30, Math.round(times.length / (times.at(-1) - times[0] || 1))));
   console.log(`  ${times.length} frames, about ${fps} fps`);
   const run = (cmd, args) =>
-    new Promise((ok, fail) => spawn(cmd, args, { stdio: ["ignore", "ignore", "inherit"] }).on("exit", (c) => (c ? fail(new Error(`${cmd} exited ${c}`)) : ok())));
+    new Promise((ok, fail) =>
+      spawn(cmd, args, { stdio: ["ignore", "ignore", "inherit"] }).on("exit", (c) => (c ? fail(new Error(`${cmd} exited ${c}`)) : ok())),
+    );
   const input = ["-y", "-loglevel", "error", "-framerate", String(fps), "-i", join(dir, "%04d.jpg")];
   // MP4 for anywhere that plays video; animated WebP (via img2webp: ffmpeg builds often lack a WebP
   // encoder) for the README, where GitHub shows images but not video files from the repository.
   if (process.argv.includes("--mp4")) {
-    await run("ffmpeg", [...input, "-vf", "scale=1600:-2:flags=lanczos", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "26", "-movflags", "+faststart", join(OUT, `${name}.mp4`)]);
+    await run("ffmpeg", [
+      ...input,
+      "-vf",
+      "scale=1600:-2:flags=lanczos",
+      "-c:v",
+      "libx264",
+      "-pix_fmt",
+      "yuv420p",
+      "-crf",
+      "26",
+      "-movflags",
+      "+faststart",
+      join(OUT, `${name}.mp4`),
+    ]);
   }
   // A 16:7 band from the middle, 880 px wide, 12 frames a second: small enough for a README.
   await run("ffmpeg", [...input, "-t", String(seconds), "-vf", "fps=12,crop=iw:iw*7/16,scale=880:-2:flags=lanczos", join(dir, "s%04d.png")]);
-  const stills = readdirSync(dir).filter((f) => /^s\d+\.png$/.test(f)).sort().map((f) => join(dir, f));
+  const stills = readdirSync(dir)
+    .filter((f) => /^s\d+\.png$/.test(f))
+    .sort()
+    .map((f) => join(dir, f));
   await run("img2webp", ["-loop", "0", "-lossy", "-q", "45", "-m", "6", "-d", "83", ...stills, "-o", join(OUT, `${name}.webp`)]);
   console.log("  wrote", join(OUT, `${name}.webp`));
   rmSync(dir, { recursive: true, force: true });
@@ -240,7 +278,9 @@ try {
     await page.send("Emulation.setDeviceMetricsOverride", { width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false });
     await open(page, SHOTS[0].view);
     // The map alone: panels, legend and controls hidden.
-    await page.eval(`document.head.insertAdjacentHTML("beforeend", "<style>.top-left,.layers,.bottom,.maplibregl-control-container{display:none!important}</style>")`);
+    await page.eval(
+      `document.head.insertAdjacentHTML("beforeend", "<style>.top-left,.layers,.bottom,.maplibregl-control-container{display:none!important}</style>")`,
+    );
     await page.idle();
     await animate(page, "wind");
   }

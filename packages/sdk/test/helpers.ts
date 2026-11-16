@@ -3,8 +3,17 @@ import type { FieldGrid } from "../src/types.js";
 /** Build a 4SF1 body the way the API does (forecast/fields.py), for decoder tests. */
 export function makeField(grid: FieldGrid, vars: Record<string, number[]>, scale = 0.01, offset = 0): ArrayBuffer {
   const header = {
-    format: "4SF1", model: "gfs", run: "2026111300", init_time: "2026-11-13T00:00Z", valid_time: "2026-11-13T06:00Z",
-    forecast_hour: 6, interval_hours: 1, grid, dtype: "int16", byte_order: "little", missing: -32768,
+    format: "4SF1",
+    model: "gfs",
+    run: "2026111300",
+    init_time: "2026-11-13T00:00Z",
+    valid_time: "2026-11-13T06:00Z",
+    forecast_hour: 6,
+    interval_hours: 1,
+    grid,
+    dtype: "int16",
+    byte_order: "little",
+    missing: -32768,
     variables: Object.keys(vars).map((id) => ({ id, name: id, units: "u", semantics: "instant", scale, offset })),
   };
   let text = new TextEncoder().encode(JSON.stringify(header));

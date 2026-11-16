@@ -1,15 +1,7 @@
 import { AlertsApi } from "./alerts.js";
 import { ForeshadowError } from "./errors.js";
 import { decodeField, type Field } from "./field.js";
-import type {
-  Forecast,
-  Health,
-  Model,
-  PlacesResponse,
-  RunDetail,
-  RunsResponse,
-  VariablesResponse,
-} from "./types.js";
+import type { Forecast, Health, Model, PlacesResponse, RunDetail, RunsResponse, VariablesResponse } from "./types.js";
 
 export const DEFAULT_BASE_URL = "https://api.4shadow.io";
 
@@ -151,9 +143,7 @@ export class ForeshadowClient {
       headers["content-type"] = "application/json";
       body = JSON.stringify(init.body);
     }
-    const signals = [opts.signal, this.timeoutMs > 0 ? AbortSignal.timeout(this.timeoutMs) : undefined].filter(
-      (s): s is AbortSignal => !!s,
-    );
+    const signals = [opts.signal, this.timeoutMs > 0 ? AbortSignal.timeout(this.timeoutMs) : undefined].filter((s): s is AbortSignal => !!s);
     const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
     let res: Response;
     try {
@@ -206,11 +196,7 @@ export class ForeshadowClient {
   forecast(where: Where, options: ForecastOptions = {}): Promise<Forecast> {
     const { signal, vars, hours, start, tz, daily, run, model } = options;
     const loc = typeof where === "string" ? { q: where } : "q" in where ? { q: where.q } : { lat: where.lat, lon: where.lon };
-    return this.json<Forecast>(
-      "/v2/forecast",
-      { ...loc, vars: vars?.join(","), hours, start, tz, daily, run, model },
-      { signal },
-    );
+    return this.json<Forecast>("/v2/forecast", { ...loc, vars: vars?.join(","), hours, start, tz, daily, run, model }, { signal });
   }
 
   /** Places matching a name, best match first. */
@@ -219,16 +205,8 @@ export class ForeshadowClient {
   }
 
   /** Towns and villages nearest a point, closest first (within 50 km). */
-  nearestPlaces(
-    lat: number,
-    lon: number,
-    options: RequestOptions & { limit?: number; minPopulation?: number } = {},
-  ): Promise<PlacesResponse> {
-    return this.json<PlacesResponse>(
-      "/v2/places",
-      { lat, lon, limit: options.limit, min_population: options.minPopulation },
-      options,
-    );
+  nearestPlaces(lat: number, lon: number, options: RequestOptions & { limit?: number; minPopulation?: number } = {}): Promise<PlacesResponse> {
+    return this.json<PlacesResponse>("/v2/places", { lat, lon, limit: options.limit, min_population: options.minPopulation }, options);
   }
 
   /** The runs available for a model, newest first. */

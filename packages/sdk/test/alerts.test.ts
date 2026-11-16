@@ -124,7 +124,9 @@ describe("verifyWebhook", () => {
     const secret = `whsec_${randomBytes(24).toString("base64")}`;
     const body = JSON.stringify({ type: "alert.test", timestamp: "2026-11-14T00:00:15Z", data: { alert: { id: "a1", name: "x", metadata: {} } } });
     const ts = Math.floor(Date.now() / 1000);
-    const sig = createHmac("sha256", Buffer.from(secret.slice(6), "base64")).update(`msg_1.${ts}.${body}`).digest("base64");
+    const sig = createHmac("sha256", Buffer.from(secret.slice(6), "base64"))
+      .update(`msg_1.${ts}.${body}`)
+      .digest("base64");
     const hook = await verifyWebhook(secret, { "webhook-id": "msg_1", "webhook-timestamp": String(ts), "webhook-signature": `v1,${sig}` }, body);
     expect(hook.type).toBe("alert.test");
   });

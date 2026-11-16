@@ -3,7 +3,10 @@ import { Palette, dailyRows, series, timeseriesRows, type Forecast } from "../sr
 
 describe("Palette", () => {
   const p = new Palette({
-    stops: [{ value: 0, color: "#000000ff" }, { value: 10, color: "#ff000080" }],
+    stops: [
+      { value: 0, color: "#000000ff" },
+      { value: 10, color: "#ff000080" },
+    ],
     transparent_below: 1,
     transparent_above: null,
   });

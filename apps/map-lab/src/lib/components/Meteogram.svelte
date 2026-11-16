@@ -36,7 +36,7 @@
   function extent(...series: number[][]): [number, number] {
     let lo = Infinity;
     let hi = -Infinity;
-    for (const s of series) for (const v of s) if (Number.isFinite(v)) (lo = Math.min(lo, v)), (hi = Math.max(hi, v));
+    for (const s of series) for (const v of s) if (Number.isFinite(v)) ((lo = Math.min(lo, v)), (hi = Math.max(hi, v)));
     return Number.isFinite(lo) ? [lo, hi] : [0, 1];
   }
 
@@ -127,7 +127,7 @@
     let bestD = Infinity;
     times.forEach((t, i) => {
       const d = Math.abs(x(t) - px);
-      if (d < bestD) (bestD = d), (best = i);
+      if (d < bestD) ((bestD = d), (best = i));
     });
     return best;
   }
@@ -149,7 +149,7 @@
 
 <div class="meteogram" bind:clientWidth={width}>
   <svg
-    width={width}
+    {width}
     {height}
     role="slider"
     aria-label="Hourly temperature, rain, wind{hasWaves ? ' and waves' : ''}. Arrow keys move through hours, Enter shows the hour on the map."
@@ -243,7 +243,13 @@
       {#if Number.isFinite(temp[hoverIndex]!)}<circle cx={hx} cy={tempY(temp[hoverIndex]!)} r="4" fill="var(--series-temp)" class="ring" />{/if}
       {#if Number.isFinite(wind[hoverIndex]!)}<circle cx={hx} cy={windY(wind[hoverIndex]!)} r="4" fill="var(--series-wind)" class="ring" />{/if}
       {#if Number.isFinite(gust[hoverIndex]!)}<circle cx={hx} cy={windY(gust[hoverIndex]!)} r="4" fill="var(--series-gust)" class="ring" />{/if}
-      {#if hasWaves && Number.isFinite(wave[hoverIndex]!)}<circle cx={hx} cy={waveY(wave[hoverIndex]!)} r="4" fill="var(--series-wave)" class="ring" />{/if}
+      {#if hasWaves && Number.isFinite(wave[hoverIndex]!)}<circle
+          cx={hx}
+          cy={waveY(wave[hoverIndex]!)}
+          r="4"
+          fill="var(--series-wave)"
+          class="ring"
+        />{/if}
     {/if}
   </svg>
 
@@ -254,13 +260,17 @@
       <div class="row"><i style:background="var(--series-temp)"></i><b class="num">{fmt(temp[i]!)} °C</b><span>temperature</span></div>
       <div class="row"><i style:background="var(--series-rain)"></i><b class="num">{fmt(rain[i]!)} mm/h</b><span>rain</span></div>
       <div class="row">
-        <i style:background="var(--series-wind)"></i><b class="num">{fmt(wind[i]!)} m/s</b><span>wind {Number.isFinite(dir[i]!) ? compass(dir[i]!) : ""}</span>
+        <i style:background="var(--series-wind)"></i><b class="num">{fmt(wind[i]!)} m/s</b><span
+          >wind {Number.isFinite(dir[i]!) ? compass(dir[i]!) : ""}</span
+        >
       </div>
       <div class="row"><i style:background="var(--series-gust)"></i><b class="num">{fmt(gust[i]!)} m/s</b><span>gusts</span></div>
       {#if hasWaves}
         <div class="row">
           <i style:background="var(--series-wave)"></i><b class="num">{fmt(wave[i]!)} m</b><span
-            >waves{Number.isFinite(waveDir[i]!) ? ` from ${compass(waveDir[i]!)}` : ""}{Number.isFinite(wavePeriod[i]!) ? `, ${fmt(wavePeriod[i]!, 0)} s` : ""}</span
+            >waves{Number.isFinite(waveDir[i]!) ? ` from ${compass(waveDir[i]!)}` : ""}{Number.isFinite(wavePeriod[i]!)
+              ? `, ${fmt(wavePeriod[i]!, 0)} s`
+              : ""}</span
           >
         </div>
         {#if swell[i]! >= 0.1}<div class="row sub"><b class="num">{fmt(swell[i]!)} m</b><span>of it swell</span></div>{/if}

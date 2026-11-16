@@ -87,7 +87,12 @@
 
   function key(e: KeyboardEvent) {
     if (!times.length) return;
-    const from = hover ?? Math.max(0, times.findIndex((t) => t >= time));
+    const from =
+      hover ??
+      Math.max(
+        0,
+        times.findIndex((t) => t >= time),
+      );
     if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
       const step = (e.key === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 24 : 1);
       hover = Math.max(0, Math.min(times.length - 1, from + step));
@@ -140,7 +145,9 @@
         <line class="base" x1={PAD} x2={width - PAD} y1={s.top + ROW} y2={s.top + ROW} />
         <line class="threshold" x1={PAD} x2={width - PAD} y1={s.thresholdY} y2={s.thresholdY} />
         <text class="name" x={PAD} y={s.top - 5}>{s.c.name}<tspan class="stat">{"\u00a0· "}{s.c.statistic}</tspan></text>
-        <text class="limit" x={width - PAD - 2} y={s.thresholdY < s.top + ROW / 2 ? s.thresholdY + 12 : s.thresholdY - 4} text-anchor="end">{OPS[s.c.operator]} {s.c.threshold} {s.c.units}</text>
+        <text class="limit" x={width - PAD - 2} y={s.thresholdY < s.top + ROW / 2 ? s.thresholdY + 12 : s.thresholdY - 4} text-anchor="end"
+          >{OPS[s.c.operator]} {s.c.threshold} {s.c.units}</text
+        >
         {#if s.empty}
           <text class="none" x={width / 2} y={s.top + ROW / 2 + 8} text-anchor="middle">No values here (a sea variable over land?)</text>
         {:else}

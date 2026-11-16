@@ -52,7 +52,7 @@ export function checkField(q: URLSearchParams): string | null {
     const b = bbox.split(",").map(Number);
     if (b.length !== 4 || b.some((x) => !Number.isFinite(x))) return "bbox: west,south,east,north";
     const [w, s, e, n] = b as [number, number, number, number];
-    const width = ((((e - w) % 360) + 360) % 360) || 360;
+    const width = (((e - w) % 360) + 360) % 360 || 360;
     const cells = (width / 0.25) * ((n - s) / 0.25);
     if (s < -90 || n > 90 || n <= s || cells / Number(stride) ** 2 > MAX_DETAIL_CELLS) return "bbox: too large";
   } else if (stride === "1") return "The whole globe at 0.25° isn't served here: zoom in, or use the API with your own key";

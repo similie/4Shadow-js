@@ -12,13 +12,7 @@ export class ForeshadowError extends Error {
   /** For `quota_exceeded`: when the key's day or billing cycle ends and requests work again. */
   readonly resetsAt: Date | undefined;
 
-  constructor(
-    message: string,
-    status: number,
-    url: string,
-    detail?: string,
-    extra: { code?: string; resetsAt?: Date } = {},
-  ) {
+  constructor(message: string, status: number, url: string, detail?: string, extra: { code?: string; resetsAt?: Date } = {}) {
     super(message);
     this.name = "ForeshadowError";
     this.status = status;

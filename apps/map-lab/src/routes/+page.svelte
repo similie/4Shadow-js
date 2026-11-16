@@ -12,7 +12,7 @@
   import Timeline, { type TimelineMark } from "#lib/components/Timeline.svelte";
   import { API_URL, client, DIRECT } from "#lib/config.ts";
   import { formatCoords, formatValue, formatWave, formatWind } from "#lib/format.ts";
-  import { COLOR_LAYERS } from "#lib/weather/catalog.ts";
+  import { layersFor } from "#lib/weather/catalog.ts";
   import { WeatherMap, type Readout, type Status } from "#lib/weather/weather-map.ts";
 
   let { data } = $props();
@@ -62,9 +62,9 @@
   /** Set while an alert is being drawn or edited: map clicks belong to the editor then. */
   let alertEditing = $state<{ alert: Alert | null } | null>(null);
 
-  // Only the layers the model has: AIGFS has wind, temperature, humidity, pressure and rain.
-  const known = $derived(new Set(variables.map((v) => v.id)));
-  const layers = $derived(COLOR_LAYERS.filter((l) => [...l.vars, l.legendVar, l.tileVar].every((id) => known.has(id))));
+  // Only the layers this run can draw: AIGFS has wind, temperature, humidity, pressure and rain, and
+  // a run made before a variable was added lacks it.
+  const layers = $derived(run ? layersFor(variables, run.variables) : []);
   const layer = $derived(layers.find((l) => l.id === layerId) ?? null);
   const legendInfo = $derived(layer ? variables.find((v) => v.id === layer.legendVar) : undefined);
   const initTime = $derived(run ? Date.parse(run.init_time) : 0);
@@ -159,13 +159,17 @@
     if (id === model || !wm) return;
     model = id;
     await load(wm);
-    // Keep the layer if the model has it; otherwise wind, which every model has.
-    if (layerId && !layers.some((l) => l.id === layerId)) layerId = "wind";
   }
 
   async function selectRun(id: string) {
     const r = await client.run(id, model);
     run = r;
+    // Keep the layer if this run has it; otherwise wind, which every run has. Tell the map before
+    // giving it the run, so the run is never asked for a variable it lacks.
+    if (layerId && !layers.some((l) => l.id === layerId)) {
+      layerId = "wind";
+      wm?.setLayer(layerId);
+    }
     steps = r.valid_times.map((t) => Date.parse(t));
     wm?.setRun(r);
     time = wm?.currentTime ?? steps[0] ?? 0;

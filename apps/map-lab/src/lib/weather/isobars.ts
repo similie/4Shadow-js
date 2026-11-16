@@ -44,10 +44,7 @@ export function isobars(field: PressureField, id = "mslp", interval = 4): Featur
   const features: Array<Feature<LineString, { hpa: number }>> = [];
   if (!Number.isFinite(lo) || !Number.isFinite(hi)) return { type: "FeatureCollection", features };
   const generator = contours().size([nx, ny]);
-  const toLonLat = ([x, y]: [number, number]): [number, number] => [
-    g.lon0 + (x - 0.5) * g.dlon,
-    g.lat0 - (y - 0.5) * g.dlat,
-  ];
+  const toLonLat = ([x, y]: [number, number]): [number, number] => [g.lon0 + (x - 0.5) * g.dlon, g.lat0 - (y - 0.5) * g.dlat];
   for (let level = Math.ceil(lo / interval) * interval; level <= hi; level += interval) {
     const shape = generator.contour(values as unknown as number[], level);
     for (const polygon of shape.coordinates) {

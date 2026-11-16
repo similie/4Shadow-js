@@ -47,6 +47,11 @@ export interface AlertInput extends AlertDefinition {
   model?: Model;
   /** An https URL to notify. The response to `create()` has its secret, once. */
   webhook_url?: string | null;
+  /**
+   * Up to 10 addresses to mail. Each new one is asked to confirm first, and every alert mail can
+   * unsubscribe it. Your account's email must be confirmed. `[]` or `null` stops mailing.
+   */
+  email_to?: string[] | null;
   /** Your own keys and values (up to 50, 4 KB), sent back with every notification. */
   metadata?: AlertMetadata;
   /** false saves the alert paused. */
@@ -66,6 +71,8 @@ export interface Alert extends Required<Omit<AlertDefinition, "conditions">> {
   conditions: (AlertCondition & { accumulate_hours: number | null })[];
   /** `secret` is only in the responses to `create()`, `rotateSecret()` and an update that adds a webhook. */
   webhook: { url: string; secret_hint: string; secret?: string } | null;
+  /** The addresses this alert mails; only `confirmed` ones get mail. */
+  email: { address: string; status: "confirmed" | "pending" | "unsubscribed" }[];
   metadata: AlertMetadata;
   active: boolean;
   evaluation: {
@@ -245,7 +252,8 @@ const id = (alertId: string) => `/${encodeURIComponent(alertId)}`;
  * Early warnings, as `client.alerts`. An alert watches an area for conditions (rain totals, gusts,
  * waves ...) in every new forecast run; when they're forecast it has events, which show on your
  * 4Shadow map, are listed here and are sent to your webhook (see `verifyWebhook()`).
- * Needs an API key; it is always sent in the `api-key` header.
+ * Needs an API key, always sent in the `api-key` header. In a browser, leave the key out and point
+ * `baseUrl` at a route of your own server that adds it.
  *
  * ```ts
  * const alert = await fs.alerts.create({
@@ -294,10 +302,7 @@ export class AlertsApi {
   }
 
   /** What a definition would report now, without saving it, with the area's values at every step. */
-  preview(
-    definition: AlertDefinition & Partial<AlertInput> & { run?: string },
-    options: AlertRequestOptions = {},
-  ): Promise<AlertPreview> {
+  preview(definition: AlertDefinition & Partial<AlertInput> & { run?: string }, options: AlertRequestOptions = {}): Promise<AlertPreview> {
     return this.#send("POST", "/preview", { body: definition, signal: options.signal });
   }
 

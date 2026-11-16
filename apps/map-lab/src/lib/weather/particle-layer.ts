@@ -200,7 +200,7 @@ interface Target {
 }
 
 /**
- * Animated wind particles drawn from u/v fields, like Windy's: particles move with the
+ * Animated particles drawn from u/v fields: particles move with the
  * (time-interpolated) wind on the GPU, leaving trails that fade. They follow the map as it moves,
  * in mercator or on a globe.
  */

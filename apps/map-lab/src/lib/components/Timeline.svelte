@@ -1,3 +1,15 @@
+<script lang="ts" module>
+  /** A stretch of time to mark on the track, such as an alert's event. */
+  export interface TimelineMark {
+    start: number;
+    end: number;
+    label: string;
+    color: string;
+    /** Drawn fainter (an alert other than the selected one). */
+    dim?: boolean;
+  }
+</script>
+
 <script lang="ts">
   import { dayKey, formatDay, formatTime, formatUtc } from "#lib/format.ts";
 
@@ -9,6 +21,7 @@
     loading,
     onSeek,
     onToggle,
+    marks = [],
   }: {
     steps: number[];
     time: number;
@@ -17,7 +30,11 @@
     loading: boolean;
     onSeek: (ms: number) => void;
     onToggle: () => void;
+    marks?: TimelineMark[];
   } = $props();
+
+  const shown = $derived(marks.filter((m) => m.end >= first && m.start <= last));
+  const clamp = (ms: number) => Math.max(first, Math.min(last, ms));
 
   let track: HTMLDivElement | undefined = $state();
   let dragging = $state(false);
@@ -118,6 +135,16 @@
         </div>
       {/each}
     </div>
+    {#each shown as m, i (i)}
+      <div
+        class="mark"
+        class:dim={m.dim}
+        style:left="{pct(clamp(m.start))}%"
+        style:width="max(3px, {pct(clamp(m.end)) - pct(clamp(m.start))}%)"
+        style:background={m.color}
+        title="{m.label}: {formatTime(m.start)} to {formatTime(m.end)}"
+      ></div>
+    {/each}
     <div class="bar">
       <div class="fill" style:width="{pct(time)}%"></div>
       {#if now >= first && now <= last}
@@ -205,6 +232,16 @@
   }
   .day.alt {
     background: rgba(255, 255, 255, 0.025);
+  }
+  .mark {
+    position: absolute;
+    bottom: 12px;
+    height: 5px;
+    border-radius: 2px;
+    opacity: 0.9;
+  }
+  .mark.dim {
+    opacity: 0.35;
   }
   .bar {
     position: absolute;

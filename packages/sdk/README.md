@@ -1,6 +1,6 @@
 # @similie/4shadow
 
-A JavaScript and TypeScript client for the [4Shadow](https://4shadow.io) weather forecast API. It works in Node 20+, browsers, Deno and Bun, and has no dependencies.
+A JavaScript and TypeScript client for the [4Shadow](https://4shadow.io) weather forecast API. It works in Node 22+, browsers, Deno and Bun, and has no dependencies.
 
 - **Point forecasts** for any place on Earth: give coordinates or a place name ("Paris", "Same, Timor-Leste").
 - **Place search**, by name or nearest to a point.
@@ -42,8 +42,8 @@ At sea, forecasts include `wave_height` (significant wave height), `wave_period`
 
 ```ts
 const lisbon = await fs.forecast("Lisbon, Portugal", { vars: ["wave_height", "wave_dir", "wave_period"] });
-lisbon.current?.wave_height;    // 3.2 (m)
-lisbon.location.sea_point;      // { lat: 38.75, lon: -9.5, distance_km: 30.5 }
+lisbon.current?.wave_height; // 3.2 (m)
+lisbon.location.sea_point; // { lat: 38.75, lon: -9.5, distance_km: 30.5 }
 ```
 
 Variables that exist only at sea have `marine: true` in `fs.variables()`.
@@ -77,10 +77,10 @@ A field holds one forecast step's values on the model grid, for up to four varia
 const run = await fs.run(); // steps and valid times of the latest run
 const field = await fs.field({ vars: ["u10", "v10"], time: run.forecast_hours[3], run: run.run, stride: 2 });
 
-field.grid;                       // { lat0, dlat, nlat, lon0, dlon, nlon, wraps }
-field.values("u10");              // Float32Array, rows north to south, NaN where missing
+field.grid; // { lat0, dlat, nlat, lon0, dlon, nlon, wraps }
+field.values("u10"); // Float32Array, rows north to south, NaN where missing
 field.sample("u10", 48.85, 2.35); // bilinear value at a point
-field.wind(48.85, 2.35);          // { u, v, speed, direction }
+field.wind(48.85, 2.35); // { u, v, speed, direction }
 field.direction("wave_dir", 38, 5); // a direction, blended as an angle (350° and 10° give 0°)
 ```
 
@@ -95,12 +95,12 @@ import { Palette } from "@similie/4shadow";
 
 const { variables } = await fs.variables();
 const palette = new Palette(variables.find((v) => v.id === "t2m")!.legend!);
-palette.css(21.5);     // "rgba(…)"
-palette.ramp(256);     // RGBA lookup texture for a shader
-palette.gradient();    // CSS gradient for a legend
+palette.css(21.5); // "rgba(…)"
+palette.ramp(256); // RGBA lookup texture for a shader
+palette.gradient(); // CSS gradient for a legend
 ```
 
-The [map lab](../../apps/map-lab) uses all of this to build Windy-style maps: GPU colour layers, wind particles, isobars, a globe and time animation.
+The [map lab](../../apps/map-lab) uses all of this to build animated weather maps: GPU colour layers, wind particles, isobars, a globe and time animation.
 
 ## Early warnings
 
@@ -122,7 +122,7 @@ const { events } = await fs.alerts.events({ alert: alert.id }); // upcoming and 
 const geojson = await fs.alerts.eventsGeoJson(); // all your alerts' events, for a map source
 ```
 
-`area_mode` sets how the area is read: `"any"` (anywhere in it, the default), `"mean"` (its average) or `"coverage"` (on at least `coverage_percent` of it). `alerts.preview()` checks a definition without saving it, and returns the area's values at every step for drawing. `update()`, `delete()`, `deliveries()`, `test()` and `rotateSecret()` do what they say. The alerts API takes the key only in the `api-key` header, so these calls always send it there.
+`area_mode` sets how the area is read: `"any"` (anywhere in it, the default), `"mean"` (its average) or `"coverage"` (on at least `coverage_percent` of it). `alerts.preview()` checks a definition without saving it, and returns the area's values at every step for drawing. `update()`, `delete()`, `deliveries()`, `test()` and `rotateSecret()` do what they say. The alerts API takes the key only in the `api-key` header, so these calls always send it there. In a browser, keep the key on your server: create the client without a key and point `baseUrl` at a route of yours that adds it (the [map lab](../../apps/map-lab) does this).
 
 Notifications follow [Standard Webhooks](https://www.standardwebhooks.com). Check them with `verifyWebhook()`, passing the body exactly as received:
 
@@ -141,12 +141,12 @@ app.post("/hooks/4shadow", express.text({ type: "*/*" }), async (req, res) => {
 });
 ```
 
-| `type` | When |
-|---|---|
-| `alert.event.created` | A new event is forecast |
-| `alert.event.updated` | It shifts by 3 hours or more, its peak changes by 10% or more, or it stops early; `data.previous` has the old times and peak |
-| `alert.event.cancelled` | No longer forecast (`cancel_reason: "no_longer_forecast"`), or the alert's area or conditions changed (`"alert_changed"`) |
-| `alert.test` | You called `alerts.test()` |
+| `type`                  | When                                                                                                                         |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `alert.event.created`   | A new event is forecast                                                                                                      |
+| `alert.event.updated`   | It shifts by 3 hours or more, its peak changes by 10% or more, or it stops early; `data.previous` has the old times and peak |
+| `alert.event.cancelled` | No longer forecast (`cancel_reason: "no_longer_forecast"`), or the alert's area or conditions changed (`"alert_changed"`)    |
+| `alert.test`            | You called `alerts.test()`                                                                                                   |
 
 Answer with a 2xx within 10 seconds. Otherwise the notification is retried after 1 minute, 5 minutes, 30 minutes, 2 hours and 6 hours. A retry has the same `webhook-id`, and each event has a `revision`: a higher revision replaces a lower one.
 

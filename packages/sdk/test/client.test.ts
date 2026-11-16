@@ -53,7 +53,9 @@ describe("ForeshadowClient", () => {
     expect(err.resetsAt?.toISOString()).toBe("2026-11-15T00:00:00.000Z");
     expect(err.retryable).toBe(false);
 
-    const limited = await client(() => jsonResponse({ error: "rate_limited" }, 429)).c.runs().catch((e) => e);
+    const limited = await client(() => jsonResponse({ error: "rate_limited" }, 429))
+      .c.runs()
+      .catch((e) => e);
     expect(limited.code).toBe("rate_limited");
     expect(limited.retryable).toBe(true);
 

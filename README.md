@@ -2,10 +2,10 @@
 
 JavaScript tools for the [4Shadow](https://4shadow.io) weather forecast API, by [Similie](https://similie.com).
 
-| | |
-|---|---|
+|                                |                                                                                                                                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [`packages/sdk`](packages/sdk) | `@similie/4shadow`: the API client. Point forecasts by coordinates or place name, place search, map tiles, and raw gridded fields for WebGL maps. Typed, dependency-free, for Node and browsers. |
-| [`apps/map-lab`](apps/map-lab) | A local SvelteKit app for developing maps on the SDK: GPU colour layers, wind particles, isobars, a globe, time animation, point forecasts. |
+| [`apps/map-lab`](apps/map-lab) | A local SvelteKit app for developing maps on the SDK: GPU colour layers, wind particles, isobars, a globe, time animation, point forecasts.                                                      |
 
 ## Develop
 

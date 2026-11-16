@@ -192,7 +192,10 @@ export class FieldLayer implements CustomLayerInterface {
     const at = (i: number, j: number) => [-180 + (360 * j) / (lons - 1), 90 - (180 * i) / (lats - 1)];
     for (let i = 0; i < lats - 1; i++) {
       for (let j = 0; j < lons - 1; j++) {
-        const p00 = at(i, j), p01 = at(i, j + 1), p10 = at(i + 1, j), p11 = at(i + 1, j + 1);
+        const p00 = at(i, j),
+          p01 = at(i, j + 1),
+          p10 = at(i + 1, j),
+          p11 = at(i + 1, j + 1);
         verts.push(...p00, ...p10, ...p01, ...p01, ...p10, ...p11);
       }
     }

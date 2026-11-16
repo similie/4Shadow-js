@@ -14,9 +14,7 @@ import { PublicMap } from "#lib/server/public-map.ts";
 import { forgetSecret, rememberSecret } from "#lib/server/rig.ts";
 
 const publicMap =
-  MAP_MODE === "public"
-    ? new PublicMap({ apiUrl: FORESHADOW_API_URL, apiKey: FORESHADOW_API_KEY, cacheBytes: CACHE_MB * 1024 * 1024 })
-    : null;
+  MAP_MODE === "public" ? new PublicMap({ apiUrl: FORESHADOW_API_URL, apiKey: FORESHADOW_API_KEY, cacheBytes: CACHE_MB * 1024 * 1024 }) : null;
 
 const REQUEST_HEADERS = ["accept", "content-type", "if-none-match", "if-modified-since"];
 const RESPONSE_HEADERS = ["content-type", "cache-control", "etag", "last-modified", "expires", "vary"];

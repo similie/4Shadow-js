@@ -32,7 +32,18 @@ describe("alert areas", () => {
   });
 
   it("measures bounds and centres", () => {
-    const box: AlertArea = { type: "Polygon", coordinates: [[[124, -9.5], [127.5, -9.5], [127.5, -8], [124, -8], [124, -9.5]]] };
+    const box: AlertArea = {
+      type: "Polygon",
+      coordinates: [
+        [
+          [124, -9.5],
+          [127.5, -9.5],
+          [127.5, -8],
+          [124, -8],
+          [124, -9.5],
+        ],
+      ],
+    };
     expect(bounds(box)).toEqual([124, -9.5, 127.5, -8]);
     expect(centre(box)).toEqual([125.75, -8.75]);
     const [w, s, e, n] = bounds({ type: "Point", coordinates: [10, 0] }, 111.2);
@@ -43,7 +54,18 @@ describe("alert areas", () => {
     expect(areaText({ type: "Point", coordinates: [125.56, -8.55] })).toBe("the point 8.55°S 125.56°E");
     expect(areaText({ type: "Point", coordinates: [-0.12, 51.5] }, 25)).toBe("25 km around 51.50°N 0.12°W");
     // One degree square at the equator: about 111 km × 111 km.
-    const square: AlertArea = { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] };
+    const square: AlertArea = {
+      type: "Polygon",
+      coordinates: [
+        [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 1],
+          [0, 0],
+        ],
+      ],
+    };
     expect(areaText(square)).toMatch(/^an area of 12 thousand km² near 0\.50°N 0\.50°E$/);
   });
 });

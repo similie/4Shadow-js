@@ -227,7 +227,9 @@
           {:else}
             Click to add corners; click the first corner, double-click or press Enter to finish. Backspace removes the last one.
           {/if}
-          <button type="button" class="link" onclick={() => (layers.stopDraw(), (drawing = false), layers.setDraft(area, point ? radius : 0))}>Cancel</button>
+          <button type="button" class="link" onclick={() => (layers.stopDraw(), (drawing = false), layers.setDraft(area, point ? radius : 0))}
+            >Cancel</button
+          >
         </p>
       {:else if area}
         <p class="hint">{areaText(area, point ? radius : 0)} <button type="button" class="link" onclick={() => draw(kind)}>Redraw</button></p>
@@ -270,17 +272,17 @@
             {/if}
           </div>
           <div class="line">
-          <select bind:value={c.operator} aria-label="Comparison" class="op">
-            {#each OPERATORS as op (op)}<option value={op}>{OPERATOR_TEXT[op]}</option>{/each}
-          </select>
-          <input class="num" type="number" step="any" bind:value={c.threshold} aria-label="Threshold" />
-          <span class="units">{conditionUnits(c, v)}</span>
-          {#if canAccumulate(v)}
-            <select bind:value={c.accumulate_hours} aria-label="Over" class="over">
-              <option value={null}>per hour</option>
-              {#each TOTALS as h (h)}<option value={h}>in {h} h</option>{/each}
+            <select bind:value={c.operator} aria-label="Comparison" class="op">
+              {#each OPERATORS as op (op)}<option value={op}>{OPERATOR_TEXT[op]}</option>{/each}
             </select>
-          {/if}
+            <input class="num" type="number" step="any" bind:value={c.threshold} aria-label="Threshold" />
+            <span class="units">{conditionUnits(c, v)}</span>
+            {#if canAccumulate(v)}
+              <select bind:value={c.accumulate_hours} aria-label="Over" class="over">
+                <option value={null}>per hour</option>
+                {#each TOTALS as h (h)}<option value={h}>in {h} h</option>{/each}
+              </select>
+            {/if}
           </div>
         </div>
       {/each}

@@ -172,7 +172,8 @@
 
   function deliveryText(d: AlertDelivery): string {
     if (d.status === "delivered") return `Delivered${d.response_status ? ` (${d.response_status})` : ""}`;
-    if (d.status === "failed") return `Failed after ${d.attempts} ${d.attempts === 1 ? "try" : "tries"}${d.response_status ? ` (${d.response_status})` : ""}`;
+    if (d.status === "failed")
+      return `Failed after ${d.attempts} ${d.attempts === 1 ? "try" : "tries"}${d.response_status ? ` (${d.response_status})` : ""}`;
     if (d.status === "pending" && d.attempts > 0) return `Retrying${d.next_attempt_at ? ` at ${formatTime(Date.parse(d.next_attempt_at))}` : ""}`;
     return d.status[0]!.toUpperCase() + d.status.slice(1);
   }
@@ -222,17 +223,7 @@
     </div>
   {:else if editing}
     {#if layers}
-      <AlertEditor
-        {variables}
-        {layers}
-        {rig}
-        {run}
-        {time}
-        {onSeek}
-        alert={editing.alert}
-        onSaved={saved}
-        onCancel={() => (editing = null)}
-      />
+      <AlertEditor {variables} {layers} {rig} {run} {time} {onSeek} alert={editing.alert} onSaved={saved} onCancel={() => (editing = null)} />
     {/if}
   {:else if alert}
     {@const s = status(alert)}
@@ -242,10 +233,17 @@
       <h3>{alert.name}</h3>
       <span class="status {s.tone}"><i></i>{s.text}</span>
     </div>
-    <p class="what">{definitionText(alert, variables)}, over {areaText(alert.area, alert.radius_km)}, up to {alert.lead_days} days ahead{alert.min_duration_hours ? `, lasting ${alert.min_duration_hours} h or more` : ""}.</p>
+    <p class="what">
+      {definitionText(alert, variables)}, over {areaText(alert.area, alert.radius_km)}, up to {alert.lead_days} days ahead{alert.min_duration_hours
+        ? `, lasting ${alert.min_duration_hours} h or more`
+        : ""}.
+    </p>
     {#if alert.evaluation.error}<p class="error">{alert.evaluation.error}</p>{/if}
     <p class="muted small">
-      {#if alert.evaluation.run}Checked against the {alert.evaluation.run.slice(8)}Z run of {alert.evaluation.run.slice(0, 4)}-{alert.evaluation.run.slice(4, 6)}-{alert.evaluation.run.slice(6, 8)}.{:else}Not checked yet.{/if}
+      {#if alert.evaluation.run}Checked against the {alert.evaluation.run.slice(8)}Z run of {alert.evaluation.run.slice(
+          0,
+          4,
+        )}-{alert.evaluation.run.slice(4, 6)}-{alert.evaluation.run.slice(6, 8)}.{:else}Not checked yet.{/if}
       Every new run checks it again.
     </p>
 
@@ -268,7 +266,9 @@
       <h4>Events</h4>
       {#each store.eventsOf(alert.id).toSorted((a, b) => a.start.localeCompare(b.start)) as e (e.id)}
         <button class="event" class:on={eventOn(e)} onclick={() => (onSeek(Date.parse(e.peak.time)), onFocus(alert!.area, alert!.radius_km))}>
-          <span class="status {eventOn(e) ? 'now' : 'later'}"><i></i>{eventOn(e) ? "On at map time" : e.status === "ongoing" ? "Under way" : "Coming"}</span>
+          <span class="status {eventOn(e) ? 'now' : 'later'}"
+            ><i></i>{eventOn(e) ? "On at map time" : e.status === "ongoing" ? "Under way" : "Coming"}</span
+          >
           <b class="num">{formatTime(Date.parse(e.start))} to {formatTime(Date.parse(e.end))}</b>
           <span class="muted">{e.duration_hours} h, {peakText(e)}</span>
         </button>
@@ -286,7 +286,9 @@
           {#if rig.secrets.includes(alert.id)}
             <span class="tag ok">The lab has it</span>
           {:else}
-            <span class="tag" title="Its secret was shown before the lab saw it. A new secret lets the lab verify deliveries.">The lab doesn't have it</span>
+            <span class="tag" title="Its secret was shown before the lab saw it. A new secret lets the lab verify deliveries."
+              >The lab doesn't have it</span
+            >
           {/if}
         </p>
         {#if secret}
@@ -305,7 +307,9 @@
         </div>
         {#if tested}
           <p class="small {tested.delivered ? '' : 'error'}">
-            {tested.delivered ? "Delivered" : "Not delivered"} in {tested.duration_ms} ms{tested.delivery.response_status ? `, answered ${tested.delivery.response_status}` : ""}{tested.delivery.error ? `: ${tested.delivery.error}` : ""}.
+            {tested.delivered ? "Delivered" : "Not delivered"} in {tested.duration_ms} ms{tested.delivery.response_status
+              ? `, answered ${tested.delivery.response_status}`
+              : ""}{tested.delivery.error ? `: ${tested.delivery.error}` : ""}.
           </p>
         {/if}
         {#if deliveries.length}
@@ -315,7 +319,9 @@
               <li>
                 <span class="when num">{ago(d.created_at)}</span>
                 <span>{typeText(d.type)}</span>
-                <span class="tag" class:ok={d.status === "delivered"} class:bad={d.status === "failed"} title={d.error ?? undefined}>{deliveryText(d)}</span>
+                <span class="tag" class:ok={d.status === "delivered"} class:bad={d.status === "failed"} title={d.error ?? undefined}
+                  >{deliveryText(d)}</span
+                >
               </li>
             {/each}
           </ul>
@@ -343,8 +349,8 @@
 
     {#if store.loaded && !store.alerts.length}
       <p class="muted">
-        No alerts yet. An alert watches an area for conditions, such as 50 mm of rain in a day, in every new forecast,
-        and tells your webhook days ahead.
+        No alerts yet. An alert watches an area for conditions, such as 50 mm of rain in a day, in every new forecast, and tells your webhook days
+        ahead.
       </p>
     {/if}
     <ul class="list">

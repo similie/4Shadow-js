@@ -302,10 +302,7 @@ export class AlertsApi {
   }
 
   /** What a definition would report now, without saving it, with the area's values at every step. */
-  preview(
-    definition: AlertDefinition & Partial<AlertInput> & { run?: string },
-    options: AlertRequestOptions = {},
-  ): Promise<AlertPreview> {
+  preview(definition: AlertDefinition & Partial<AlertInput> & { run?: string }, options: AlertRequestOptions = {}): Promise<AlertPreview> {
     return this.#send("POST", "/preview", { body: definition, signal: options.signal });
   }
 

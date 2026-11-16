@@ -4,7 +4,10 @@ import { Field, type FieldGrid } from "@similie/4shadow";
 export function makeField(grid: FieldGrid, vars: Record<string, ArrayLike<number>>, scale = 0.01): Field {
   const raw = new Map<string, Int16Array>();
   for (const [id, values] of Object.entries(vars)) {
-    raw.set(id, Int16Array.from(values, (v) => (Number.isNaN(v) ? -32768 : Math.round(v / scale))));
+    raw.set(
+      id,
+      Int16Array.from(values, (v) => (Number.isNaN(v) ? -32768 : Math.round(v / scale))),
+    );
   }
   return new Field(
     {

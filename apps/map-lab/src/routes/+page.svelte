@@ -121,7 +121,11 @@
       if (!list.latest) throw new Error("The API has no forecast runs yet");
       await selectRun(list.latest);
     } catch (e) {
-      const rig = DIRECT ? null : await fetch("/api/rig").then((r) => r.json()).catch(() => null);
+      const rig = DIRECT
+        ? null
+        : await fetch("/api/rig")
+            .then((r) => r.json())
+            .catch(() => null);
       fatal =
         rig && !rig.keyConfigured
           ? "The lab has no API key. Put FORESHADOW_API_KEY=your-key in apps/map-lab/.env.local and restart it."
@@ -250,16 +254,16 @@
         >Get a free API key</a
       >
     {:else}
-    <button
-      class="warnings"
-      class:active={alertsOpen}
-      aria-pressed={alertsOpen}
-      onclick={() => (alertsOpen ? (alertsOpen = false) : openAlerts())}
-      title="Alerts on your API key: draw an area, set conditions, get webhooks days ahead"
-    >
-      Early warnings
-      {#if eventCount}<span class="count num" style:background={ALERT_COLORS.now}>{eventCount}</span>{/if}
-    </button>
+      <button
+        class="warnings"
+        class:active={alertsOpen}
+        aria-pressed={alertsOpen}
+        onclick={() => (alertsOpen ? (alertsOpen = false) : openAlerts())}
+        title="Alerts on your API key: draw an area, set conditions, get webhooks days ahead"
+      >
+        Early warnings
+        {#if eventCount}<span class="count num" style:background={ALERT_COLORS.now}>{eventCount}</span>{/if}
+      </button>
     {/if}
   </div>
   <Search onPick={picked} />
@@ -277,15 +281,7 @@
       onClose={() => (alertsOpen = false)}
     />
   {:else if point}
-    <PointPanel
-      lat={point.lat}
-      lon={point.lon}
-      place={point.place}
-      run={run?.run}
-      {time}
-      onClose={closePoint}
-      onPick={seek}
-    />
+    <PointPanel lat={point.lat} lon={point.lon} place={point.place} run={run?.run} {time} onClose={closePoint} onPick={seek} />
   {/if}
 </div>
 
@@ -427,7 +423,11 @@
     display: block;
   }
   .tag {
-    font: 500 10px/1 ui-monospace, "SF Mono", Menlo, monospace;
+    font:
+      500 10px/1 ui-monospace,
+      "SF Mono",
+      Menlo,
+      monospace;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--text-2);

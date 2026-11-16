@@ -1,6 +1,6 @@
 {
   "name": "@similie/4shadow",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Weather forecast API client for JavaScript and TypeScript: global point forecasts by place name or coordinates, place search, map tiles, raw gridded fields for WebGL weather maps, and early-warning alerts with signed webhooks. NOAA GFS data through 4Shadow.",
   "license": "MIT",
   "author": "Similie (https://similie.com)",

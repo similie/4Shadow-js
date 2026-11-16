@@ -4,6 +4,10 @@ This package follows [semantic versioning](https://semver.org). Until 1.0, a min
 
 ## Unreleased
 
+- `Model` names `"aigfs"`, NOAA's AI model, next to `"gfs"`. Pass it as `model` to `forecast()`, `variables()`, `runs()`, `run()`, `field()` and `tileUrl()` where the API serves it.
+- `VariablesResponse` has the model's `title` and `description`; `VariableInfo` has `land_only` for variables that fields and tiles leave empty over water.
+- `Health.status` can be `"degraded"`: GFS is in, another model has no run yet.
+
 ## 0.1.0
 
 First release.

@@ -41,6 +41,16 @@ The SDK's tests run against a fake server. To also run them against a real one: 
 
 CI runs formatting, types, tests on Node 22, 24 and 26, both builds, and the Docker image. A PR needs it green and one maintainer's review.
 
+## Releasing the SDK
+
+Releases are automatic: when `main` gets a version of `@similie/4shadow` that npm doesn't have, the [Release SDK](.github/workflows/release.yml) workflow publishes it (with provenance), tags the commit `sdk-vX.Y.Z` and makes a GitHub release from the changelog.
+
+1. In a pull request, bump the version: `npm version patch -w packages/sdk --no-git-tag-version` (or `minor`, `major`).
+2. In `packages/sdk/CHANGELOG.md`, move the "Unreleased" notes under a heading for the new version, such as `## 0.1.1`.
+3. Merge. The workflow does the rest; watch it in the Actions tab.
+
+Only maintainers can release: npm accepts publishes for this package only from that workflow on this repository ([trusted publishing](https://docs.npmjs.com/trusted-publishers)), so there is no npm token to leak.
+
 ## License
 
 By contributing, you agree that your contribution is released under the [MIT License](LICENSE).

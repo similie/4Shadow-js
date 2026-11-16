@@ -18,7 +18,7 @@
     "test": "svelte-kit sync && vitest run"
   },
   "dependencies": {
-    "@similie/4shadow": "0.1.0",
+    "@similie/4shadow": "0.2.0",
     "d3-contour": "^4.0.3",
     "maplibre-gl": "^6.18.0"
   },

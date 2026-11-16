@@ -99,6 +99,13 @@
   const stepWidth = $derived(times.length > 1 ? x(times[1]!) - x(times[0]!) : 8);
   const barWidth = $derived(Math.max(1, stepWidth - 2));
 
+  /** Label every nth day, so labels ("17 Tue", about 40 px) never overlap on a long forecast. */
+  const labelEvery = $derived.by(() => {
+    if (days.length < 3) return 1;
+    const px = (x(days[days.length - 1]!.at) - x(days[1]!.at)) / Math.max(1, days.length - 2);
+    return Math.max(1, Math.ceil(44 / Math.max(1, px)));
+  });
+
   /** Local-day boundaries (location's time zone). */
   const days = $derived.by(() => {
     const out: Array<{ at: number; label: string }> = [];
@@ -160,7 +167,9 @@
     <!-- day bands -->
     {#each days as d, i (d.at)}
       <line class="dayline" x1={x(d.at)} x2={x(d.at)} y1={ROWS.temp[0] - 14} y2={axis} />
-      <text class="daylabel" x={x(d.at) + 4} y={height - 6}>{i === 0 && x(days[1]?.at ?? t1) - x(d.at) < 40 ? "" : d.label}</text>
+      {#if i % labelEvery === 0}
+        <text class="daylabel" x={x(d.at) + 4} y={height - 6}>{i === 0 && x(days[1]?.at ?? t1) - x(d.at) < 40 ? "" : d.label}</text>
+      {/if}
     {/each}
 
     <!-- temperature -->

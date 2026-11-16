@@ -81,10 +81,11 @@ button {
   filter: invert(1);
 }
 .maplibregl-ctrl-attrib {
-  background: rgba(10, 13, 17, 0.7) !important;
-  color: var(--muted);
+  background: rgba(10, 13, 17, 0.78) !important;
+  color: var(--text-2);
 }
-.maplibregl-ctrl-attrib a {
+.maplibregl-ctrl-attrib a,
+.maplibregl-ctrl-attrib-inner {
   color: var(--text-2) !important;
 }
 .maplibregl-ctrl-attrib-button {

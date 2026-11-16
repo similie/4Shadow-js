@@ -5,17 +5,29 @@
  * (src/lib/server/local-only.ts).
  *
  * For the webhook rig, it also keeps the secret the API returns once when an alert gets a webhook.
+ *
+ * With MAP_MODE=public it serves everyone, but only the map's own reads (src/lib/server/public-map.ts).
  */
 import { error, type RequestHandler } from "@sveltejs/kit";
-import { FORESHADOW_API_KEY, FORESHADOW_API_URL } from "$app/env/private";
+import { CACHE_MB, FORESHADOW_API_KEY, FORESHADOW_API_URL, MAP_MODE } from "$app/env/private";
+import { PublicMap } from "#lib/server/public-map.ts";
 import { forgetSecret, rememberSecret } from "#lib/server/rig.ts";
+
+const publicMap =
+  MAP_MODE === "public"
+    ? new PublicMap({ apiUrl: FORESHADOW_API_URL, apiKey: FORESHADOW_API_KEY, cacheBytes: CACHE_MB * 1024 * 1024 })
+    : null;
 
 const REQUEST_HEADERS = ["accept", "content-type", "if-none-match", "if-modified-since"];
 const RESPONSE_HEADERS = ["content-type", "cache-control", "etag", "last-modified", "expires", "vary"];
 const ALERT = /^v2\/alerts\/([^/]+)$/;
 
-const forward: RequestHandler = async ({ params, url, request }) => {
+const forward: RequestHandler = async ({ params, url, request, getClientAddress }) => {
   const path = params.path ?? "";
+  if (publicMap) {
+    const gzip = /\bgzip\b/.test(request.headers.get("accept-encoding") ?? "");
+    return publicMap.handle(request.method, path, url, getClientAddress(), gzip);
+  }
   if (!path.startsWith("v2/")) error(404, "Only /v2 paths are forwarded");
 
   const target = new URL(`${FORESHADOW_API_URL}/${path}`);

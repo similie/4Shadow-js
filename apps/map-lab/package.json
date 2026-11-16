@@ -14,7 +14,8 @@
     "start": "node build",
     "preview": "vite preview",
     "tunnel": "node scripts/tunnel.mjs",
-    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test": "svelte-kit sync && vitest run"
   },
   "dependencies": {
     "@similie/4shadow": "0.1.0",
@@ -30,6 +31,7 @@
     "svelte": "^5.57.3",
     "svelte-check": "^4.7.8",
     "typescript": "^6.0.3",
-    "vite": "^8.3.8"
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
   }
 }

@@ -26,10 +26,15 @@ export interface ColorSpec {
   legend: Legend;
   /** Sea only (waves): drawn only where the basemap drew water, reaching its coastline. */
   marine?: boolean;
+  /** Land only (fire weather): drawn only where the basemap drew no water, reaching its coastline. */
+  landOnly?: boolean;
 }
 
-/** How many grid cells sea-only data is spread toward the coast (the model's land mask is coarse). */
-const MARINE_SPREAD = 2;
+/**
+ * How many grid cells sea-only or land-only data is spread across the model's coastline, which is
+ * coarser than the basemap's; the basemap's own coastline then clips it.
+ */
+const COAST_SPREAD = 2;
 
 const VERTEX = `
 layout(location = 0) in vec2 a_lonlat;
@@ -279,7 +284,7 @@ export class FieldLayer implements CustomLayerInterface {
       gl.uniform1i(p.uniform(name), unit);
     };
     // Get (and on a new step, upload) every texture before binding any.
-    const spread = spec.marine ? MARINE_SPREAD : 0;
+    const spread = spec.marine || spec.landOnly ? COAST_SPREAD : 0;
     const texA = textures.get(frames.a, spec.vars, spread);
     const texB = frames.b ? textures.get(frames.b, spec.vars, spread) : texA;
     const texDa = detail ? textures.get(detail.a, spec.vars, spread) : texA; // unused without detail,
@@ -306,6 +311,9 @@ export class FieldLayer implements CustomLayerInterface {
       // Only where something opaque is already drawn, which at this point is only water (the
       // background is transparent); and leave the alpha as it is, so the land fill still finds land.
       gl.blendFuncSeparate(gl.DST_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+    } else if (spec.landOnly) {
+      // Only where nothing is drawn yet, which is land (water is opaque): "under" blending, as the land fill.
+      gl.blendFunc(gl.ONE_MINUS_DST_ALPHA, gl.ONE);
     } else {
       gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     }

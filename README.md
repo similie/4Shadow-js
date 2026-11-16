@@ -134,7 +134,7 @@ flowchart TB
   map["<b>Browser</b><br/>WeatherMap: MapLibre + WebGL2 layers<br/>@similie/4shadow"]
   door["<b>Map server</b> (SvelteKit, Node)<br/>adds your key · checks · limits · cache"]
   api[("<b>4Shadow API</b><br/>api.4shadow.io")]
-  gfs["NOAA GFS + GFS-Wave<br/>0.25°, 4 runs a day"]
+  gfs["NOAA GFS + GFS-Wave, AIGFS<br/>0.25°, 4 runs a day"]
   hooks["Your app"]
   map -- "fields, tiles, forecasts" --> door -- "api-key" --> api
   gfs --> api
@@ -147,7 +147,7 @@ flowchart TB
 
 ## Data and credits
 
-- **Forecasts:** NOAA's [Global Forecast System](https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast) and GFS-Wave (public domain), served by [4Shadow](https://4shadow.io): 25 variables at 0.25° worldwide, hourly for 5 days and 3-hourly to 16 days, four runs a day.
+- **Forecasts:** NOAA's [Global Forecast System](https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast) and GFS-Wave (public domain), served by [4Shadow](https://4shadow.io): 45 variables at 0.25° worldwide, heat, fire and comfort indices among them, hourly for 5 days and 3-hourly to 16 days, four runs a day. Also NOAA's AI model, AIGFS (public domain; built on Google DeepMind's GraphCast), 6-hourly to 16 days.
 - **Place names:** [GeoNames](https://www.geonames.org), CC BY 4.0.
 - **Basemap:** [OpenFreeMap](https://openfreemap.org), © [OpenMapTiles](https://openmaptiles.org), © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors.
 - **Built with:** [MapLibre GL JS](https://maplibre.org), [d3-contour](https://github.com/d3/d3-contour), [SvelteKit](https://svelte.dev).
@@ -158,7 +158,7 @@ flowchart TB
 - `@similie/4shadow-map`: the map engine as a package for any MapLibre app.
 - Respect reduced motion: still streamlines in place of moving particles.
 - Move the coastline wave spreading into a worker, so playback never waits on it.
-- More models next to GFS as the 4Shadow API adds them.
+- More models as the 4Shadow API adds them: ECMWF's IFS and AIFS next, then air quality.
 
 Ideas and votes are welcome in [issues](https://github.com/similie/4Shadow-js/issues).
 

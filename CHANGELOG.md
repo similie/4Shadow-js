@@ -4,6 +4,13 @@ Notable changes to the map lab and the repository. The SDK's changes, by version
 
 ## Unreleased
 
+### Map lab
+
+- **New layers** from the 4Shadow API's new variables: wind at 100 m (its particles move with the 100 m wind), radar reflectivity, low clouds, feels-like temperature, heat index, wet-bulb temperature, fire weather, dryness (VPD), freezing level and soil moisture.
+- **Model switch**: GFS or AIGFS, NOAA's AI model, when the API serves it. The layer list shows only the chosen model's layers, and point forecasts follow the switch.
+- Fire weather and soil moisture are drawn on land only, clipped to the basemap's coastline.
+- Hovering a layer in the menu says what it shows.
+
 ## 2026-11-16
 
 ### Map lab

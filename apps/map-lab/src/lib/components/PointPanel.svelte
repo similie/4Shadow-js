@@ -1,6 +1,6 @@
 <script lang="ts">
   import CloseButton from "#lib/components/CloseButton.svelte";
-  import { compass, dailyRows, type Forecast, type Place } from "@similie/4shadow";
+  import { compass, dailyRows, type Forecast, type Model, type Place } from "@similie/4shadow";
   import { client } from "#lib/config.ts";
   import { formatCoords, formatTime } from "#lib/format.ts";
   import Meteogram from "./Meteogram.svelte";
@@ -9,6 +9,7 @@
     lat,
     lon,
     place,
+    model,
     run,
     time,
     onClose,
@@ -17,6 +18,7 @@
     lat: number;
     lon: number;
     place?: Place;
+    model?: Model;
     run?: string;
     time: number;
     onClose: () => void;
@@ -33,7 +35,7 @@
     loading = true;
     error = null;
     client
-      .forecast({ lat, lon }, { run, signal: ctrl.signal })
+      .forecast({ lat, lon }, { run, model, signal: ctrl.signal })
       .then((f) => (forecast = f))
       .catch((e) => {
         if ((e as Error).name !== "AbortError") error = (e as Error).message;
@@ -122,7 +124,7 @@
         </p>
       {/if}
       <p class="muted small">
-        Now in {forecast.timezone.name} · GFS run {forecast.run.slice(0, 8)}
+        Now in {forecast.timezone.name} · {forecast.model.toUpperCase()} run {forecast.run.slice(0, 8)}
         {forecast.run.slice(8)}Z
       </p>
     </div>

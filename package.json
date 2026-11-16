@@ -20,7 +20,7 @@
     "screenshots": "node apps/map-lab/scripts/screenshots.mjs --out docs/images"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.17"
   },
   "devDependencies": {
     "prettier": "^3.10.1",

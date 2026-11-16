@@ -1,0 +1,51 @@
+name: Bug report
+description: Something in the SDK or the map lab doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. For a problem with your account, key or billing, write to sales@4shadow.io instead.
+        Never paste an API key here.
+  - type: dropdown
+    id: part
+    attributes:
+      label: Which part?
+      options:
+        - SDK (@similie/4shadow)
+        - Map lab, running locally
+        - Map lab, deployed (public mode or Docker)
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      description: Include the exact error text if there is one.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to make it happen
+      description: The smallest code or the steps that show it. For the map, the URL hash (map position) and the layer help.
+      placeholder: |
+        1. npm run lab
+        2. Open http://localhost:5181/#4/-9/126
+        3. Choose Waves and press play
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Node (`node -v`), browser and OS, and the SDK version or commit.
+      placeholder: Node 24.4, Chrome 142, macOS 26, commit abc1234
+    validations:
+      required: true
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: Screenshots, console output, the API's error `code`.

@@ -242,6 +242,16 @@
 
 <svelte:window onkeydown={keydown} />
 
+<svelte:head>
+  <title>{publicMap ? "Weather map · 4Shadow" : "4Shadow map lab"}</title>
+  {#if publicMap}
+    <meta
+      name="description"
+      content="Live global weather: wind, rain, temperature, pressure and waves for the next 16 days, from NOAA GFS through the 4Shadow API."
+    />
+  {/if}
+</svelte:head>
+
 <div class="map" bind:this={container}></div>
 
 <div class="top-left" style:--bottom-stack="{bottomHeight}px">

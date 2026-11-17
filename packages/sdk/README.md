@@ -7,7 +7,7 @@ A JavaScript and TypeScript client for the [4Shadow](https://4shadow.io) weather
 - **Map tiles** for MapLibre, Leaflet or OpenLayers.
 - **Raw gridded fields** for WebGL maps: colour layers, wind particles, isobars, and values under the cursor.
 
-Forecasts come from NOAA's GFS model, which covers the whole globe at 0.25°, with sea state (waves and swell) from NOAA's GFS-Wave model. Where the API serves it, `model: "aigfs"` gives NOAA's AI model (AIGFS, built on Google DeepMind's GraphCast) on the same grid, 6-hourly, to compare against. On api.4shadow.io AIGFS is on the Solo and Norris plans.
+Forecasts come from NOAA's GFS model, which covers the whole globe at 0.25°, with sea state (waves and swell) from NOAA's GFS-Wave model. Where the API serves them, `model` picks another model on the same grid to compare against: `"aigfs"`, NOAA's AI model (built on Google DeepMind's GraphCast); `"ifs"`, ECMWF's physics model, and `"aifs"`, its AI model (ECMWF open data, CC BY 4.0); or `"aerosols"`, air quality from NOAA's GEFS-Aerosols. On api.4shadow.io each model is on some plans; a key without one gets a 403 `plan_does_not_include_route`.
 
 ## Install
 

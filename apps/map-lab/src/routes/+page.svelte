@@ -38,10 +38,14 @@
   /** Height of the bottom stack (legend, readout, timeline): the side panels end above it. */
   let bottomHeight = $state(0);
 
-  /** Models offered besides GFS, when the API serves them (it answers 404 for one it doesn't). */
-  const EXTRA_MODELS: Model[] = ["aigfs"];
+  /**
+   * The weather models to switch between, and models drawn over them (air quality, which has no wind
+   * of its own), found from the API's health: those with a run that your key may call.
+   */
   let model = $state<Model>("gfs");
   let models = $state.raw<Array<{ id: Model; title: string; description: string }>>([]);
+  let overlays = $state.raw<Array<{ run: RunDetail; variables: VariableInfo[]; title: string }>>([]);
+  let searched = false;
 
   let run = $state.raw<RunDetail | null>(null);
   let runs: RunSummary[] = $state.raw([]);
@@ -62,11 +66,20 @@
   /** Set while an alert is being drawn or edited: map clicks belong to the editor then. */
   let alertEditing = $state<{ alert: Alert | null } | null>(null);
 
-  // Only the layers this run can draw: AIGFS has wind, temperature, humidity, pressure and rain, and
-  // a run made before a variable was added lacks it.
-  const layers = $derived(run ? layersFor(variables, run.variables) : []);
+  // Only the layers this run can draw (AIGFS has no clouds or waves, and a run made before a variable
+  // was added lacks it), and those an air-quality run draws over it.
+  const layers = $derived(
+    run
+      ? layersFor(
+          variables,
+          run.variables,
+          overlays.map((o) => ({ catalog: o.variables, stored: o.run.variables })),
+        )
+      : [],
+  );
   const layer = $derived(layers.find((l) => l.id === layerId) ?? null);
-  const legendInfo = $derived(layer ? variables.find((v) => v.id === layer.legendVar) : undefined);
+  const allVariables = $derived([...variables, ...overlays.flatMap((o) => o.variables)]);
+  const legendInfo = $derived(layer ? allVariables.find((v) => v.id === layer.legendVar) : undefined);
   const initTime = $derived(run ? Date.parse(run.init_time) : 0);
 
   onMount(() => {
@@ -128,7 +141,10 @@
       runs = list.runs;
       if (!list.latest) throw new Error("The API has no forecast runs yet");
       await selectRun(list.latest);
-      if (!models.length) findModels(vars);
+      if (!searched) {
+        searched = true;
+        findModels(vars);
+      }
     } catch (e) {
       const rig = DIRECT
         ? null
@@ -142,17 +158,42 @@
     }
   }
 
-  /** Offer a model switch when the API has a run of another model. */
+  /**
+   * Offer the other models the API has a run of: weather models in the switch, air quality as layers.
+   * A model your key's plan doesn't include answers 403, and isn't offered.
+   */
   async function findModels(gfs: VariablesResponse) {
+    const health = await client.health().catch(() => null);
+    const ids = health
+      ? Object.entries(health.models)
+          .filter(([id, m]) => id !== "gfs" && m.latest_run)
+          .map(([id]) => id)
+      : ["aigfs"];
+    const found = (
+      await Promise.all(
+        ids.map((id) =>
+          Promise.all([client.variables(id), client.runs(id)])
+            .then(([v, r]) => (r.latest ? { id, vars: v, latest: r.latest } : null))
+            .catch(() => null),
+        ),
+      )
+    ).filter((m) => m !== null);
+    // A weather model has wind; one without (air quality) draws its layers over the weather model's.
+    const weather = found.filter((m) => m.vars.variables.some((v) => v.id === "u10"));
+    const info = (id: string, v: VariablesResponse) => ({ id, title: v.title ?? id.toUpperCase(), description: v.description ?? "" });
+    if (weather.length) models = [info("gfs", gfs), ...weather.map((m) => info(m.id, m.vars))];
     const extra = await Promise.all(
-      EXTRA_MODELS.map((id) =>
-        Promise.all([client.variables(id), client.runs(id)])
-          .then(([v, r]) => (r.latest ? { id, title: v.title ?? id.toUpperCase(), description: v.description ?? "" } : null))
-          .catch(() => null),
-      ),
+      found
+        .filter((m) => !weather.includes(m))
+        .map((m) =>
+          client
+            .run(m.latest, m.id)
+            .then((run) => ({ run, variables: m.vars.variables, title: m.vars.title ?? m.id }))
+            .catch(() => null),
+        ),
     );
-    const found = extra.filter((m) => m !== null);
-    if (found.length) models = [{ id: "gfs", title: gfs.title ?? "NOAA GFS", description: gfs.description ?? "" }, ...found];
+    overlays = extra.filter((o) => o !== null);
+    wm?.setOverlays(overlays);
   }
 
   async function switchModel(id: Model) {
@@ -345,7 +386,7 @@
   {#each layers as l (l.id)}
     <button
       class:active={layerId === l.id}
-      title={variables.find((v) => v.id === l.legendVar)?.description}
+      title={allVariables.find((v) => v.id === l.legendVar)?.description}
       onclick={() => (layerId = layerId === l.id ? null : l.id)}
       aria-pressed={layerId === l.id}
     >

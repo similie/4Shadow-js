@@ -7,10 +7,12 @@ Notable changes to the map lab and the repository. The SDK's changes, by version
 ### Map lab
 
 - **New layers** from the 4Shadow API's new variables: wind at 100 m (its particles move with the 100 m wind), radar reflectivity, low clouds, feels-like temperature, heat index, wet-bulb temperature, fire weather, dryness (VPD), freezing level and soil moisture.
-- **Model switch**: GFS or AIGFS, NOAA's AI model, when the API serves it. The layer list shows only the chosen model's layers, and point forecasts follow the switch.
+- **Model switch**: every weather model the API serves and your key may call, found from `/v2/health`: GFS, NOAA's AI model AIGFS, and ECMWF's IFS and AIFS. The layer list shows only the chosen model's layers, and point forecasts follow the switch.
+- **Air quality**: PM2.5, PM10, dust, smoke haze and haze from NOAA's GEFS-Aerosols, drawn over the chosen weather model's particles and isobars and blank outside the air-quality run's 5 days.
+- The map's attribution names the forecast models in view, in ECMWF's own words for its data (CC BY 4.0).
 - Fire weather and soil moisture are drawn on land only, clipped to the basemap's coastline.
 - Hovering a layer in the menu says what it shows.
-- Point forecasts from AIGFS use the API's per-model path, `/v2/aigfs/forecast`, which public mode forwards too. On api.4shadow.io AIGFS is on the Solo and Norris plans; with another key the switch stays hidden.
+- Point forecasts from another model use the API's per-model path, such as `/v2/aigfs/forecast`, which public mode forwards too, along with `/v2/health` (cached 60 s). On api.4shadow.io each model is on some plans; one your key can't call isn't offered.
 - The layer list follows the selected run too: a run made before a variable was added doesn't offer its layer. If the selected layer drops out on a run or model change, the map falls back to wind.
 
 ## 2026-11-16

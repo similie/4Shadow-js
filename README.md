@@ -42,7 +42,7 @@
 |                                    |                                                                                                                                                                                                                                        |
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`packages/sdk`](packages/sdk)     | **`@similie/4shadow`**, the API client. Point forecasts by coordinates or place name, place search, map tiles, raw gridded fields for WebGL, early-warning alerts and webhook verification. Typed, no dependencies, Node and browsers. |
-| [`apps/map-lab`](apps/map-lab)     | **The map.** A SvelteKit app that draws the forecast on the GPU: 16 colour layers, wind and wave particles, isobars, a globe, smooth time, point forecasts and early warnings. Run it locally, or deploy it as a public map.           |
+| [`apps/map-lab`](apps/map-lab)     | **The map.** A SvelteKit app that draws the forecast on the GPU: 31 colour layers, wind and wave particles, isobars, a globe, smooth time, point forecasts and early warnings. Run it locally, or deploy it as a public map.           |
 | [`docs/deploy.md`](docs/deploy.md) | **Deploy guide.** Docker or Node, settings, reverse proxies, and what a public map costs.                                                                                                                                              |
 
 ## Highlights
@@ -52,6 +52,7 @@
 - **Sharp at every zoom.** The whole world loads at 0.5°; from zoom 3 the area in view also loads at the model's full 0.25° and is drawn over it.
 - **Smooth time.** Press play and 16 days of forecast run without a jump: colours and particles blend between steps, and isobars and pressure centres crossfade. Data loads ahead of the playhead.
 - **Flat map or globe, night or day.** Both basemaps are vector tiles, with the weather under coastlines, borders and labels.
+- **Four weather models and air quality.** Switch between NOAA's GFS and its AI model AIGFS, and ECMWF's IFS and AIFS, and lay air quality (PM2.5, PM10, dust and smoke haze, from NOAA's GEFS-Aerosols) over any of them. The map offers the models your key's plan includes.
 - **Point forecasts.** Click anywhere for current conditions, a meteogram (temperature, rain, wind and gusts, waves at sea) and daily and hourly tables, in the place's own time zone.
 - **Early warnings.** Draw an area, set conditions like "50 mm of rain in 24 hours", see at once which hours of the latest forecast meet them, and get signed webhooks and emails when a new run does.
 - **Deploy it in one command.** Public mode keeps your API key on your server, forwards only what the map draws, caches each field once per forecast run for all visitors, and limits each visitor.
@@ -73,7 +74,7 @@
   </tr>
   <tr>
     <td><img src="docs/images/temperature.webp" alt="Temperature over Europe" /><br /><sub><b>Temperature.</b> 2 m temperature over Europe at the model's full 0.25°.</sub></td>
-    <td><img src="docs/images/hero.webp" alt="Wind over Australia and the Maritime Continent, with the layer list" /><br /><sub><b>Wind.</b> 10 m wind with particles, isobars and the 16 layers.</sub></td>
+    <td><img src="docs/images/hero.webp" alt="Wind over Australia and the Maritime Continent, with the layer list" /><br /><sub><b>Wind.</b> 10 m wind with particles, isobars and the layer list.</sub></td>
   </tr>
 </table>
 
@@ -134,10 +135,10 @@ flowchart TB
   map["<b>Browser</b><br/>WeatherMap: MapLibre + WebGL2 layers<br/>@similie/4shadow"]
   door["<b>Map server</b> (SvelteKit, Node)<br/>adds your key · checks · limits · cache"]
   api[("<b>4Shadow API</b><br/>api.4shadow.io")]
-  gfs["NOAA GFS + GFS-Wave, AIGFS<br/>0.25°, 4 runs a day"]
+  data["NOAA and ECMWF open data<br/>GFS + GFS-Wave, AIGFS, GEFS-Aerosols, IFS + waves, AIFS<br/>0.25°, 2-4 runs a day each"]
   hooks["Your app"]
   map -- "fields, tiles, forecasts" --> door -- "api-key" --> api
-  gfs --> api
+  data --> api
   api -. "signed webhooks" .-> hooks
 ```
 
@@ -147,18 +148,18 @@ flowchart TB
 
 ## Data and credits
 
-- **Forecasts:** NOAA's [Global Forecast System](https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast) and GFS-Wave (public domain), served by [4Shadow](https://4shadow.io): 45 variables at 0.25° worldwide, heat, fire and comfort indices among them, hourly for 5 days and 3-hourly to 16 days, four runs a day. Also NOAA's AI model, AIGFS (public domain; built on Google DeepMind's GraphCast), 6-hourly to 16 days.
+- **Forecasts:** NOAA's [Global Forecast System](https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast) and GFS-Wave (public domain), served by [4Shadow](https://4shadow.io): 45 variables at 0.25° worldwide, heat, fire and comfort indices among them, hourly for 5 days and 3-hourly to 16 days, four runs a day. Also NOAA's AI model, AIGFS (public domain; built on Google DeepMind's GraphCast), 6-hourly to 16 days, and air quality from NOAA's GEFS-Aerosols (public domain), 3-hourly to 5 days.
+- **ECMWF's IFS and AIFS:** © European Centre for Medium-Range Weather Forecasts (ECMWF), [open data](https://www.ecmwf.int/en/forecasts/datasets/open-data) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), served by 4Shadow at 0.25°: IFS, the European model, with waves, 3-hourly to 6 days and 6-hourly to 15 days; AIFS, ECMWF's AI model, 6-hourly to 15 days. The map credits ECMWF whenever a layer shows its data.
 - **Place names:** [GeoNames](https://www.geonames.org), CC BY 4.0.
 - **Basemap:** [OpenFreeMap](https://openfreemap.org), © [OpenMapTiles](https://openmaptiles.org), © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors.
 - **Built with:** [MapLibre GL JS](https://maplibre.org), [d3-contour](https://github.com/d3/d3-contour), [SvelteKit](https://svelte.dev).
 
 ## Roadmap
 
-- Publish `@similie/4shadow` to npm.
 - `@similie/4shadow-map`: the map engine as a package for any MapLibre app.
 - Respect reduced motion: still streamlines in place of moving particles.
 - Move the coastline wave spreading into a worker, so playback never waits on it.
-- More models as the 4Shadow API adds them: ECMWF's IFS and AIFS next, then air quality.
+- Ensembles as the 4Shadow API adds them (GEFS, ECMWF ENS, AIGEFS), for the chance of an event.
 
 Ideas and votes are welcome in [issues](https://github.com/similie/4Shadow-js/issues).
 

@@ -32,9 +32,9 @@ export interface ColorSpec {
 
 /**
  * How many grid cells sea-only or land-only data is spread across the model's coastline, which is
- * coarser than the basemap's; the basemap's own coastline then clips it.
+ * coarser than the basemap's; the basemap's own coastline then clips it. Wave particles use it too.
  */
-const COAST_SPREAD = 2;
+export const COAST_SPREAD = 2;
 
 const VERTEX = `
 layout(location = 0) in vec2 a_lonlat;

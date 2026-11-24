@@ -168,6 +168,8 @@ export class WeatherMap {
 
   private addLayers(): void {
     const map = this.map;
+    // The sea mask first: it copies the water before any weather is drawn over it.
+    map.addLayer(this.particleLayer.seaMask, WEATHER_BEFORE);
     map.addLayer(this.fieldLayer, WEATHER_BEFORE);
     map.addLayer(this.particleLayer, OVERLAY_BEFORE);
     // Two copies of the isobars and H/L markers (see crossfade.ts). Their opacity changes every
@@ -545,8 +547,15 @@ export class WeatherMap {
       if (raw) {
         this.flowFrames = { flow, frames: raw };
         if (this.particles) {
-          const moving = (f: Field) => waveFlow(f, flow.dir, flow.period);
-          this.particleLayer.setFrames({ a: moving(raw.a), b: raw.b ? moving(raw.b) : null, t: raw.t }, ["u", "v"]);
+          const moving = (f: FieldFrames): FieldFrames => ({
+            a: waveFlow(f.a, flow.dir, flow.period),
+            b: f.b ? waveFlow(f.b, flow.dir, flow.period) : null,
+            t: f.t,
+          });
+          // Zoomed in, the area in view at full resolution once it's here, as for the colours, so
+          // the particles reach the same coastline; meanwhile the global field.
+          const fine = this.detailBox ? this.framesFor([flow.dir, flow.period], 1, this.detailBox) : null;
+          this.particleLayer.setFrames(moving(raw), ["u", "v"], { detail: fine ? moving(fine) : null, marine: true });
         }
       } else complete = false;
       this.windFrames = null;

@@ -10,6 +10,7 @@ Notable changes to the map lab and the repository. The SDK's changes, by version
 - **Model switch**: every weather model the API serves and your key may call, found from `/v2/health`: GFS, NOAA's AI model AIGFS, and ECMWF's IFS and AIFS. The layer list shows only the chosen model's layers, and point forecasts follow the switch.
 - **Air quality**: PM2.5, PM10, dust, smoke haze and haze from NOAA's GEFS-Aerosols, drawn over the chosen weather model's particles and isobars and blank outside the air-quality run's 5 days.
 - The map's attribution names the forecast models in view, in ECMWF's own words for its data (CC BY 4.0).
+- Fixed: wave particles stopped short of the coast along straight, stepped edges (the wave model's coarse coastline) and could cross onto land at capes. They now reach the basemap's coastline and stay on the water, like the wave colours: they use the same coastal fill, the full-resolution field when zoomed in, and the basemap's water as a mask.
 - Fire weather and soil moisture are drawn on land only, clipped to the basemap's coastline.
 - Hovering a layer in the menu says what it shows.
 - Point forecasts from another model use the API's per-model path, such as `/v2/aigfs/forecast`, which public mode forwards too, along with `/v2/health` (cached 60 s). On api.4shadow.io each model is on some plans; one your key can't call isn't offered.

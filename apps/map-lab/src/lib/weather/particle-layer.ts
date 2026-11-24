@@ -1,5 +1,5 @@
 import type { CustomLayerInterface, CustomRenderMethodInput, Map as MapLibreMap } from "maplibre-gl";
-import type { FieldFrames } from "./field-layer";
+import { COAST_SPREAD, type FieldFrames } from "./field-layer";
 import {
   createProgram,
   FieldTextures,
@@ -29,6 +29,10 @@ uniform Grid u_grid;
 uniform sampler2D u_wa;
 uniform sampler2D u_wb;
 uniform int u_has_b;
+uniform Grid u_detail;  // a finer field of the area in view, used where it covers
+uniform sampler2D u_da;
+uniform sampler2D u_db;
+uniform int u_has_detail;
 uniform float u_t;
 uniform vec4 u_bounds;   // view in mercator: x0, y0, x1, y1
 uniform vec4 u_spawn;    // view in degrees: west, south, east, north (globe spawning)
@@ -72,8 +76,9 @@ void main() {
     return;
   }
   vec2 ll = mercatorToLonLat(vec2(fract(pos.x), pos.y));
-  vec3 wa = fieldVector(u_wa, u_grid, ll.x, ll.y);
-  vec3 wb = u_has_b == 1 ? fieldVector(u_wb, u_grid, ll.x, ll.y) : wa;
+  bool fine = u_has_detail == 1 && gridPos(u_detail, ll.x, ll.y).x > -0.5;
+  vec3 wa = fine ? fieldVector(u_da, u_detail, ll.x, ll.y) : fieldVector(u_wa, u_grid, ll.x, ll.y);
+  vec3 wb = u_has_b == 0 ? wa : fine ? fieldVector(u_db, u_detail, ll.x, ll.y) : fieldVector(u_wb, u_grid, ll.x, ll.y);
   if (wa.z < 0.5 || wb.z < 0.5) {
     // No data here (waves reaching land): end this particle; it respawns next frame.
     v_pos = pos;
@@ -161,10 +166,93 @@ void main() {
 const COMPOSITE_FRAGMENT = `#version 300 es
 precision highp float;
 uniform sampler2D u_tex;
+uniform sampler2D u_sea;  // with u_sea_only: the basemap's water, opaque where it was drawn
+uniform int u_sea_only;
 uniform float u_opacity;
 in vec2 v_uv;
 out vec4 fragColor;
-void main() { fragColor = texture(u_tex, v_uv) * u_opacity; }`;
+void main() {
+  float sea = u_sea_only == 1 ? texture(u_sea, v_uv).a : 1.0;
+  fragColor = texture(u_tex, v_uv) * u_opacity * sea;
+}`;
+
+/** Frames drawn so far (counted by the particle layer), so a stale sea mask is never used. */
+let frameCount = 0;
+
+/**
+ * Where the basemap drew water, for sea-only particles (waves). Add it just before the weather,
+ * where only the water is opaque yet (see basemap.ts): each frame it copies the screen so far,
+ * whose alpha is then the sea, the same coastline the wave colours stop at.
+ */
+export class SeaMask implements CustomLayerInterface {
+  readonly id: string;
+  readonly type = "custom" as const;
+  readonly renderingMode = "2d" as const;
+  /** Copy the water this frame; off when nothing needs it. */
+  enabled = false;
+  private texture: WebGLTexture | null = null;
+  private framebuffer: WebGLFramebuffer | null = null;
+  private size: [number, number] = [0, 0];
+  private frame = -1;
+
+  constructor(id = "weather-sea-mask") {
+    this.id = id;
+  }
+
+  onRemove(_map: MapLibreMap, gl: WebGL2RenderingContext): void {
+    if (this.texture) gl.deleteTexture(this.texture);
+    if (this.framebuffer) gl.deleteFramebuffer(this.framebuffer);
+    this.texture = null;
+    this.framebuffer = null;
+    this.size = [0, 0];
+  }
+
+  /** The water as of this frame, or null when it wasn't copied (then nothing is sea). */
+  current(frame: number): WebGLTexture | null {
+    return this.frame === frame ? this.texture : null;
+  }
+
+  render(gl: WebGL2RenderingContext): void {
+    if (!this.enabled) return;
+    const w = gl.drawingBufferWidth;
+    const h = gl.drawingBufferHeight;
+    if (!this.texture || this.size[0] !== w || this.size[1] !== h) {
+      if (this.texture) gl.deleteTexture(this.texture);
+      if (this.framebuffer) gl.deleteFramebuffer(this.framebuffer);
+      this.texture = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D, this.texture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      for (const p of [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+      this.framebuffer = gl.createFramebuffer()!;
+      const target = gl.getParameter(gl.DRAW_FRAMEBUFFER_BINDING) as WebGLFramebuffer | null;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, target);
+      this.size = [w, h];
+    }
+    // A blit, not a copy: it also resolves the map's framebuffer if that is multisampled.
+    const target = gl.getParameter(gl.DRAW_FRAMEBUFFER_BINDING) as WebGLFramebuffer | null;
+    gl.disable(gl.SCISSOR_TEST);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, target);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, this.framebuffer);
+    gl.blitFramebuffer(0, 0, w, h, 0, 0, w, h, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target);
+    this.frame = frameCount;
+  }
+}
+
+export interface ParticleFrames {
+  /** The same steps at a finer grid for part of the world (a `bbox` field), used where it covers. */
+  detail?: FieldFrames | null;
+  /**
+   * Sea-only flow (waves): spread across the model's coastline like the wave colours, and drawn
+   * only on the basemap's water (the `seaMask` layer), so particles stop at the same coast.
+   */
+  marine?: boolean;
+}
 
 export interface ParticleOptions {
   /** Screen speed: pixels per frame for each m/s of wind. */
@@ -212,7 +300,11 @@ export class ParticleLayer implements CustomLayerInterface {
   private map: MapLibreMap | null = null;
   private textures: FieldTextures | null = null;
   private frames: FieldFrames | null = null;
+  private detail: FieldFrames | null = null;
+  private marine = false;
   private vars: [string, string] = ["u10", "v10"];
+  /** Add this layer just before the weather (see SeaMask); sea-only particles are clipped to it. */
+  readonly seaMask = new SeaMask();
   private update: Program | null = null;
   private fade: Program | null = null;
   private composite: Program | null = null;
@@ -244,10 +336,15 @@ export class ParticleLayer implements CustomLayerInterface {
   /**
    * Steps of a vector field to animate: by default wind (u10, v10). Any eastward/northward pair
    * works, in m/s; cells where it is missing (land, for waves) end the particles that reach them.
+   * `detail` must be for the same steps and `t` as `frames`.
    */
-  setFrames(frames: FieldFrames | null, vars: [string, string] = ["u10", "v10"]): void {
-    const fresh = (!this.frames && frames) || vars.join() !== this.vars.join();
+  setFrames(frames: FieldFrames | null, vars: [string, string] = ["u10", "v10"], opts: ParticleFrames = {}): void {
+    const marine = !!frames && !!opts.marine;
+    const fresh = (!this.frames && frames) || vars.join() !== this.vars.join() || marine !== this.marine;
     this.frames = frames;
+    this.detail = frames ? (opts.detail ?? null) : null;
+    this.marine = marine;
+    this.seaMask.enabled = marine && this.options.opacity > 0;
     this.vars = vars;
     if (fresh) this.reset = true;
     this.map?.triggerRepaint();
@@ -255,12 +352,13 @@ export class ParticleLayer implements CustomLayerInterface {
 
   setOptions(options: Partial<ParticleOptions>): void {
     this.options = { ...this.options, ...options };
+    this.seaMask.enabled = this.marine && this.options.opacity > 0;
     this.map?.triggerRepaint();
   }
 
   onAdd(map: MapLibreMap, gl: WebGL2RenderingContext): void {
     this.map = map;
-    this.textures = new FieldTextures(gl, 4);
+    this.textures = new FieldTextures(gl, 8);
     this.update = createProgram(gl, UPDATE_VERTEX, UPDATE_FRAGMENT, ["v_pos", "v_prev", "v_age", "v_speed"]);
     this.fade = createProgram(gl, QUAD_VERTEX, FADE_FRAGMENT);
     this.composite = createProgram(gl, QUAD_VERTEX, COMPOSITE_FRAGMENT);
@@ -395,6 +493,7 @@ export class ParticleLayer implements CustomLayerInterface {
   }
 
   prerender(gl: WebGL2RenderingContext, args: CustomRenderMethodInput): void {
+    frameCount++;
     const { frames, map, textures, update, fade } = this;
     if (!frames || !map || !textures || !update || !fade || this.options.opacity <= 0) return;
     this.ensureParticles(gl);
@@ -406,18 +505,28 @@ export class ParticleLayer implements CustomLayerInterface {
     const globe = isGlobe(args);
     const opts = this.options;
 
-    // 1. Move the particles (transform feedback, no drawing).
-    const wa = textures.get(frames.a, this.vars);
-    const wb = frames.b ? textures.get(frames.b, this.vars) : null;
+    // 1. Move the particles (transform feedback, no drawing). Get (and on a new step, upload)
+    // every texture before binding any.
+    const spread = this.marine ? COAST_SPREAD : 0;
+    const detail = this.detail;
+    const wa = textures.get(frames.a, this.vars, spread);
+    const wb = frames.b ? textures.get(frames.b, this.vars, spread) : null;
+    const da = detail ? textures.get(detail.a, this.vars, spread) : wa; // unused without detail,
+    const db = detail?.b ? textures.get(detail.b, this.vars, spread) : da; // but samplers need a texture
     gl.useProgram(update.program);
     setGridUniforms(gl, update, frames.a.grid, "u_grid");
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, wa);
-    gl.uniform1i(update.uniform("u_wa"), 0);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, wb ?? wa);
-    gl.uniform1i(update.uniform("u_wb"), 1);
+    if (detail) setGridUniforms(gl, update, detail.a.grid, "u_detail");
+    const bind = (unit: number, name: string, texture: WebGLTexture) => {
+      gl.activeTexture(gl.TEXTURE0 + unit);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.uniform1i(update.uniform(name), unit);
+    };
+    bind(0, "u_wa", wa);
+    bind(1, "u_wb", wb ?? wa);
+    bind(2, "u_da", da);
+    bind(3, "u_db", db);
     gl.uniform1i(update.uniform("u_has_b"), wb ? 1 : 0);
+    gl.uniform1i(update.uniform("u_has_detail"), detail ? 1 : 0);
     gl.uniform1f(update.uniform("u_t"), frames.t);
     const view = this.viewBounds(globe);
     gl.uniform4f(update.uniform("u_bounds"), ...view.mercator);
@@ -486,10 +595,20 @@ export class ParticleLayer implements CustomLayerInterface {
   render(gl: WebGL2RenderingContext, _args: CustomRenderMethodInput): void {
     const { frames, map, composite } = this;
     if (!frames || !map || !composite || !this.targets.length || this.options.opacity <= 0) return;
+    // Sea-only particles need this frame's water; without it (not copied yet) they wait a frame.
+    const sea = this.marine ? this.seaMask.current(frameCount) : null;
+    if (this.marine && !sea) {
+      map.triggerRepaint();
+      return;
+    }
     gl.useProgram(composite.program);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.targets[0]!.texture);
     gl.uniform1i(composite.uniform("u_tex"), 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, sea ?? this.targets[0]!.texture);
+    gl.uniform1i(composite.uniform("u_sea"), 1);
+    gl.uniform1i(composite.uniform("u_sea_only"), sea ? 1 : 0);
     gl.uniform1f(composite.uniform("u_opacity"), this.options.opacity);
     gl.disable(gl.DEPTH_TEST);
     gl.disable(gl.STENCIL_TEST);
@@ -498,6 +617,7 @@ export class ParticleLayer implements CustomLayerInterface {
     gl.bindVertexArray(this.quad);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     gl.bindVertexArray(null);
+    gl.activeTexture(gl.TEXTURE0);
     map.triggerRepaint(); // keep animating
   }
 }

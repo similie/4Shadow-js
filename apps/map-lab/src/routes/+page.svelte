@@ -26,6 +26,7 @@
   let layerId: string | null = $state("wind");
   let particles = $state(true);
   let isobarsOn = $state(true);
+  let coastlinesOn = $state(true);
   let compare = $state(false);
   let globe = $state(false);
   /** Day basemap (light land and sea, dark particles); the panels stay as they are. */
@@ -220,6 +221,7 @@
   $effect(() => wm?.setLayer(layerId));
   $effect(() => wm?.setParticles(particles));
   $effect(() => wm?.setIsobars(isobarsOn));
+  $effect(() => wm?.setCoastlines(coastlinesOn));
   $effect(() => wm?.setCompare(compare));
   $effect(() => wm?.setStride(stride));
   $effect(() => wm?.setOpacity(opacity));
@@ -402,6 +404,7 @@
     ><input type="checkbox" bind:checked={particles} /> {layer?.flow ? "Wave" : "Wind"} particles</label
   >
   <label class="toggle"><input type="checkbox" bind:checked={isobarsOn} /> Isobars</label>
+  <label class="toggle"><input type="checkbox" bind:checked={coastlinesOn} /> Coastlines</label>
   <label class="toggle"><input type="checkbox" bind:checked={globe} /> Globe</label>
   <label class="toggle"><input type="checkbox" bind:checked={day} /> Day map</label>
   <button class="more" onclick={() => (settingsOpen = !settingsOpen)} aria-expanded={settingsOpen}>

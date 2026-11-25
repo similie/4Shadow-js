@@ -7,6 +7,12 @@ type Line = Array<[number, number]>;
 /** What these functions need of a field (a `Field`, or its grid and values posted to a worker). */
 export type PressureField = Pick<Field, "grid" | "values" | "range">;
 
+/**
+ * How far towards the poles lines go. MapLibre's tiles end at 85.05°, and a line beyond is squashed
+ * onto that edge: on a globe, the isobars circling a pole became one ring around it.
+ */
+const MAX_LAT = 85;
+
 /** One pass of Chaikin corner cutting: rounds the 1° grid's corners off the lines. */
 function chaikin(line: Line): Line {
   if (line.length < 3) return line;
@@ -49,7 +55,7 @@ export function isobars(field: PressureField, id = "mslp", interval = 4): Featur
     const shape = generator.contour(values as unknown as number[], level);
     for (const polygon of shape.coordinates) {
       for (const ring of polygon) {
-        // Rings close along the grid's edge; keep only the parts inside it.
+        // Rings close along the grid's edge; keep only the parts inside it, and short of the poles.
         let run: Line = [];
         const flush = () => {
           if (run.length >= 4) {
@@ -63,7 +69,7 @@ export function isobars(field: PressureField, id = "mslp", interval = 4): Featur
         };
         for (const p of ring as Line) {
           const [x, y] = p;
-          if (x <= 0 || x >= nx || y <= 0 || y >= ny) flush();
+          if (x <= 0 || x >= nx || y <= 0 || y >= ny || Math.abs(g.lat0 - (y - 0.5) * g.dlat) > MAX_LAT) flush();
           else run.push(p);
         }
         flush();

@@ -30,6 +30,17 @@ describe("isobars", () => {
     for (const [lon, lat] of ring) expect(Math.hypot(lon! - 131, lat! + 12)).toBeLessThan(8);
   });
 
+  it("stops short of the poles, where MapLibre would squash the lines onto its edge", () => {
+    // A low over the North Pole: its isobars circle the pole above 85°.
+    const { nlat, nlon, lat0, dlat } = GLOBAL_1DEG;
+    const values = new Float64Array(nlat * nlon);
+    for (let i = 0; i < nlat; i++) values.fill(1013 - 20 * Math.exp(-((90 - (lat0 - i * dlat)) ** 2) / 50), i * nlon, (i + 1) * nlon);
+    const lines = isobars(makeField(GLOBAL_1DEG, { mslp: values }, 0.1));
+    const lats = lines.features.flatMap((f) => f.geometry.coordinates.map(([, lat]) => lat!));
+    expect(lats.length).toBeGreaterThan(100);
+    expect(Math.max(...lats)).toBeLessThanOrEqual(85);
+  });
+
   it("finds the high and low centres", () => {
     const centres = pressureCentres(pressure()).features.map((f) => ({ ...f.properties, at: f.geometry.coordinates }));
     expect(centres).toContainEqual({ kind: "L", hpa: 985, at: [131, -12] });

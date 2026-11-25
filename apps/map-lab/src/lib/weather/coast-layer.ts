@@ -1,11 +1,6 @@
 import type { CustomLayerInterface, Map as MapLibreMap } from "maplibre-gl";
-import { createProgram, screenQuad, type Program } from "./gl";
+import { createProgram, SCREEN_VERTEX, screenQuad, type Program } from "./gl";
 import type { SeaMask } from "./sea-mask";
-
-const VERTEX = `#version 300 es
-layout(location = 0) in vec2 a_pos;
-out vec2 v_uv;
-void main() { v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos, 0.0, 1.0); }`;
 
 // The line covers the land within u_width pixels of the water: the most water found on two rings
 // around the pixel (the inner one catches narrow straits), less the water under the pixel itself.
@@ -77,7 +72,7 @@ export class CoastLayer implements CustomLayerInterface {
 
   onAdd(map: MapLibreMap, gl: WebGL2RenderingContext): void {
     this.map = map;
-    this.program = createProgram(gl, VERTEX, FRAGMENT);
+    this.program = createProgram(gl, SCREEN_VERTEX, FRAGMENT);
     this.quad = screenQuad(gl);
   }
 

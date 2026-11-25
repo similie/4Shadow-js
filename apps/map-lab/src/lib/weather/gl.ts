@@ -291,6 +291,19 @@ export function spreadIntoGaps(data: Float32Array, channels: 1 | 2, nlon: number
   }
 }
 
+/** "#rrggbb" or "#rrggbbaa" as RGBA, 0 to 1. */
+export function parseColor(hex: string): [number, number, number, number] {
+  const h = hex.replace(/^#/, "");
+  const full = h.length === 6 ? h + "ff" : h;
+  return [0, 2, 4, 6].map((i) => parseInt(full.slice(i, i + 2), 16) / 255) as [number, number, number, number];
+}
+
+/** The vertex shader for full-screen passes over `screenQuad`: `v_uv` runs 0 to 1 across the screen. */
+export const SCREEN_VERTEX = `#version 300 es
+layout(location = 0) in vec2 a_pos;
+out vec2 v_uv;
+void main() { v_uv = a_pos * 0.5 + 0.5; gl_Position = vec4(a_pos, 0.0, 1.0); }`;
+
 /** A buffer of the four corners of the screen, for full-screen passes (two triangles as a strip). */
 export function screenQuad(gl: WebGL2RenderingContext): WebGLVertexArrayObject {
   const vao = gl.createVertexArray()!;

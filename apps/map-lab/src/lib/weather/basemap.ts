@@ -131,25 +131,25 @@ export function basemapStyle(theme: MapTheme = "dark"): StyleSpecification {
     layers: [
       { id: "background", type: "background", paint: { "background-color": "rgba(0, 0, 0, 0)" } },
       // The open water: seas and lakes, not rivers, docks or pools. It is what sea-only layers (waves)
-      // are clipped to and what the coastlines trace (see SeaMask); rivers still show over the weather
-      // through "water-shade".
+      // are clipped to, what the coastlines trace and what is shaded over the weather (see SeaMask).
       {
         id: "water",
         type: "fill",
         source: SOURCE,
         "source-layer": "water",
-        filter: ["match", ["get", "class"], ["river", "dock", "swimming_pool"], false, true],
+        filter: ["all", ["match", ["get", "class"], ["river", "dock", "swimming_pool"], false, true], ["!=", ["get", "brunnel"], "tunnel"]],
         paint: {},
       },
       // Weather layers are inserted here.
-      // Seas drawn again, translucent, over the weather: coasts show as a change in shade with no
-      // tile seams (OpenStreetMap's water polygons are cut into squares, so outlines would show a grid).
+      // Rivers, docks and pools drawn again, translucent, over the weather. Seas and lakes get the same
+      // shade from the sea mask (SeaShadeLayer): as a fill, their caps over the North Pole would overlap
+      // on a globe. Nothing in this layer comes near a pole.
       {
         id: "water-shade",
         type: "fill",
         source: SOURCE,
         "source-layer": "water",
-        filter: ["!=", ["get", "brunnel"], "tunnel"],
+        filter: ["all", ["match", ["get", "class"], ["river", "dock", "swimming_pool"], true, false], ["!=", ["get", "brunnel"], "tunnel"]],
         paint: {},
       },
       {

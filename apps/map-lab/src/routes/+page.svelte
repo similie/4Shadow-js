@@ -12,7 +12,7 @@
   import Timeline, { type TimelineMark } from "#lib/components/Timeline.svelte";
   import { API_URL, client, DIRECT } from "#lib/config.ts";
   import { formatCoords, formatCurrent, formatValue, formatWave, formatWind } from "#lib/format.ts";
-  import { layersFor } from "#lib/weather/catalog.ts";
+  import { CURRENT_PACE, layersFor } from "#lib/weather/catalog.ts";
   import { WeatherMap, type Readout, type Status } from "#lib/weather/weather-map.ts";
 
   let { data } = $props();
@@ -400,8 +400,10 @@
     class="toggle"
     title={layer?.flow
       ? "Particles travel with the waves, at their group speed"
-      : `Particles travel with the ${layer?.winds ? "100 m" : "10 m"} wind`}
-    ><input type="checkbox" bind:checked={particles} /> {layer?.flow ? "Wave" : "Wind"} particles</label
+      : layer?.current
+        ? `Particles travel with the surface current, tides included, ${CURRENT_PACE} times faster than the water`
+        : `Particles travel with the ${layer?.winds ? "100 m" : "10 m"} wind`}
+    ><input type="checkbox" bind:checked={particles} /> {layer?.flow ? "Wave" : layer?.current ? "Current" : "Wind"} particles</label
   >
   <label class="toggle"><input type="checkbox" bind:checked={isobarsOn} /> Isobars</label>
   <label class="toggle"><input type="checkbox" bind:checked={coastlinesOn} /> Coastlines</label>

@@ -44,8 +44,18 @@ export class AlertLayers {
   };
 
   constructor(private readonly map: MapLibreMap) {
-    if (map.isStyleLoaded()) this.addLayers();
-    else map.once("load", () => this.addLayers());
+    // Whichever comes first: the style read ("style.load", unless that has passed) or everything loaded.
+    let added = false;
+    const add = () => {
+      if (added) return;
+      added = true;
+      this.addLayers();
+    };
+    if (map.isStyleLoaded()) add();
+    else {
+      map.once("style.load", add);
+      map.once("load", add);
+    }
   }
 
   /** True while drawing an area: map clicks belong to the drawing. */

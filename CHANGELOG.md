@@ -12,6 +12,7 @@ Notable changes to the map lab and the repository. The SDK's changes, by version
 - The map's attribution names the forecast models in view, in ECMWF's own words for its data (CC BY 4.0).
 - Fixed: wave particles stopped short of the coast along straight, stepped edges (the wave model's coarse coastline) and could cross onto land at capes. They now reach the basemap's coastline and stay on the water, like the wave colours: they use the same coastal fill, the full-resolution field when zoomed in, and the basemap's water as a mask.
 - Fire weather and soil moisture are drawn on land only, clipped to the basemap's coastline.
+- Fixed: the weather waited for the basemap. On a slow connection, or when OpenFreeMap was slow, the map stayed blank until every basemap tile in view had loaded, and if the basemap's tile index failed it never drew at all. The weather and early warnings are now drawn as soon as the map's style is read, and the basemap fills in when it arrives.
 - Hovering a layer in the menu says what it shows.
 - Point forecasts from another model use the API's per-model path, such as `/v2/aigfs/forecast`, which public mode forwards too, along with `/v2/health` (cached 60 s). On api.4shadow.io each model is on some plans; one your key can't call isn't offered.
 - The layer list follows the selected run too: a run made before a variable was added doesn't offer its layer. If the selected layer drops out on a run or model change, the map falls back to wind.

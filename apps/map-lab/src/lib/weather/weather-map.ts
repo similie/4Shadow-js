@@ -149,7 +149,9 @@ export class WeatherMap {
     });
     this.map.touchZoomRotate.disableRotation();
     this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
-    this.map.on("load", () => this.addLayers());
+    // As soon as the style is read, not on "load": that waits for every basemap tile in view, and
+    // never comes if the basemap's tile index fails. The weather shouldn't wait for the basemap.
+    this.map.once("style.load", () => this.addLayers());
     this.map.on("moveend", () => this.updateDetailBox());
   }
 

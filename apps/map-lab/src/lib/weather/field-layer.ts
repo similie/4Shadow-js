@@ -4,6 +4,7 @@ import {
   createProgram,
   FieldTextures,
   isGlobe,
+  parseColor,
   projectedVertexShader,
   SAMPLE_GLSL,
   setGridUniforms,
@@ -107,12 +108,6 @@ void main() {
   vec4 c = colorOf(v);
   fragColor = vec4(c.rgb * c.a, c.a) * u_opacity;
 }`;
-
-function parseColor(hex: string): [number, number, number, number] {
-  const h = hex.replace(/^#/, "");
-  const full = h.length === 6 ? h + "ff" : h;
-  return [0, 2, 4, 6].map((i) => parseInt(full.slice(i, i + 2), 16) / 255) as [number, number, number, number];
-}
 
 /**
  * A MapLibre custom layer that colours a forecast field on the GPU, from the API's raw values

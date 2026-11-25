@@ -185,6 +185,11 @@ export interface ParticleFrames {
    * only on the basemap's water (the `seaMask` layer), so particles stop at the same coast.
    */
   marine?: boolean;
+  /**
+   * How many times faster than the data the particles move. Ocean currents are a tenth of the wind's
+   * speed or less, so at the wind's pace they would hardly move.
+   */
+  pace?: number;
 }
 
 export interface ParticleOptions {
@@ -235,6 +240,7 @@ export class ParticleLayer implements CustomLayerInterface {
   private frames: FieldFrames | null = null;
   private detail: FieldFrames | null = null;
   private marine = false;
+  private pace = 1;
   private vars: [string, string] = ["u10", "v10"];
   /** Sea-only particles are clipped to it; add it to the map just before the weather (see SeaMask). */
   readonly seaMask: SeaMask;
@@ -278,6 +284,7 @@ export class ParticleLayer implements CustomLayerInterface {
     this.frames = frames;
     this.detail = frames ? (opts.detail ?? null) : null;
     this.marine = marine;
+    this.pace = opts.pace ?? 1;
     this.seaMask.use(this.id, marine && this.options.opacity > 0);
     this.vars = vars;
     if (fresh) this.reset = true;
@@ -465,7 +472,7 @@ export class ParticleLayer implements CustomLayerInterface {
     gl.uniform4f(update.uniform("u_bounds"), ...view.mercator);
     gl.uniform4f(update.uniform("u_spawn"), ...view.degrees);
     const worldSize = 512 * Math.pow(2, map.getZoom());
-    gl.uniform1f(update.uniform("u_step"), (opts.speed * steps) / worldSize);
+    gl.uniform1f(update.uniform("u_step"), (opts.speed * this.pace * steps) / worldSize);
     gl.uniform1f(update.uniform("u_frames"), steps);
     gl.uniform1f(update.uniform("u_life"), opts.life);
     gl.uniform1ui(update.uniform("u_seed"), (this.seed = (this.seed * 1664525 + 1013904223) >>> 0));
@@ -514,7 +521,7 @@ export class ParticleLayer implements CustomLayerInterface {
     const dpr = window.devicePixelRatio || 1;
     gl.uniform2f(seg.uniform("u_viewport"), w, h);
     gl.uniform1f(seg.uniform("u_width"), opts.width * dpr);
-    gl.uniform1f(seg.uniform("u_max_speed"), opts.maxSpeed);
+    gl.uniform1f(seg.uniform("u_max_speed"), opts.maxSpeed / this.pace);
     gl.uniform3f(seg.uniform("u_color"), ...opts.color);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);

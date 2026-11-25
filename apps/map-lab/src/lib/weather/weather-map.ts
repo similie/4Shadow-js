@@ -6,7 +6,7 @@ import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { basemapPaint, basemapStyle, PALETTES, WEATHER_BEFORE, type MapTheme } from "./basemap";
 import { FieldCache, type FieldRequest } from "./cache";
 import { Crossfade } from "./crossfade";
-import { COLOR_LAYERS, servable, WIND_VARS, type ColorLayerDef } from "./catalog";
+import { COLOR_LAYERS, CURRENT_PACE, servable, WIND_VARS, type ColorLayerDef } from "./catalog";
 import { CoastLayer } from "./coast-layer";
 import { creditFor } from "./credit";
 import { FieldLayer, type FieldFrames } from "./field-layer";
@@ -39,6 +39,8 @@ export interface Readout {
   /** The colour layer's value here, in its units (null when there's no data). */
   value: number | null;
   wind: { speed: number; direction: number } | null;
+  /** On the currents layer: the current's speed (m/s) and where it flows to (degrees); null over land. */
+  current: { speed: number; heading: number } | null;
   /** On wave layers: where the waves come from (degrees) and their period (s); null over land. */
   wave: { direction: number; period: number } | null;
   mslp: number | null;
@@ -66,8 +68,8 @@ export interface WeatherMapOptions {
  */
 /**
  * A model run the map draws from, with its steps and variables. The main one is the weather model's;
- * an overlay is another model's (air quality) whose colour layers draw over the main run's particles
- * and isobars.
+ * an overlay is another model's (air quality, ocean currents) whose colour layers draw over the main
+ * run's particles and isobars, or bring their own particles (currents).
  */
 interface Source {
   run: RunDetail;
@@ -276,9 +278,10 @@ export class WeatherMap {
   }
 
   /**
-   * Other models whose colour layers the map can draw (air quality, which has no wind or pressure of
-   * its own): a layer the main run can't serve comes from the first of these that can. Its frames
-   * follow the main timeline; outside the overlay's own steps the layer is left blank.
+   * Other models whose colour layers the map can draw (air quality and ocean currents, which have no
+   * wind or pressure of their own): a layer the main run can't serve comes from the first of these that
+   * can, and so do its particles when the layer names its own u/v (currents). Its frames follow the
+   * main timeline; outside the overlay's own steps the layer is left blank.
    */
   setOverlays(list: Array<{ run: RunDetail; variables: VariableInfo[] }>): void {
     this.overlays = list.map(({ run, variables }) => ({
@@ -581,12 +584,17 @@ export class WeatherMap {
     } else {
       this.flowFrames = null;
       const winds = def?.winds ?? WIND_VARS;
-      if (this.particles && this.mainServes(winds)) {
-        const frames = this.framesFor(winds, this.stride);
+      // The weather run's wind, or the motion a layer's overlay run brings (ocean currents) while in range.
+      const mover = this.mainServes(winds) ? this.main() : def?.winds && src && inRange && this.serves(src, winds) ? src : null;
+      if (this.particles && mover) {
+        const frames = this.framesFor(winds, this.stride, undefined, mover);
+        // Sea-only motion stops at the basemap's coast, as wave particles do.
+        const marine = winds.every((id) => mover.catalog.get(id)?.marine);
         if (frames) {
           this.windFrames = frames;
           this.windVars = winds;
-          this.particleLayer.setFrames(frames, winds);
+          const fine = marine && this.detailBox ? this.framesFor(winds, 1, this.detailBox, mover) : null;
+          this.particleLayer.setFrames(frames, winds, { detail: fine, marine, pace: def?.current ? CURRENT_PACE : 1 });
         } else complete = false;
       } else {
         this.windFrames = null;
@@ -728,20 +736,30 @@ export class WeatherMap {
       const period = f.sample(flow.period, lat, wrapped);
       if (Number.isFinite(direction) && Number.isFinite(period)) wave = { direction, period };
     }
+    // A u/v pair at the point, between the two steps; null where it's missing (land, for currents).
+    const uvAt = (f: FieldFrames, uv: string, vv: string) => {
+      const a = f.a.wind(lat, wrapped, uv, vv);
+      const b = f.b ? f.b.wind(lat, wrapped, uv, vv) : a;
+      const u = a.u + (b.u - a.u) * f.t;
+      const v = a.v + (b.v - a.v) * f.t;
+      return Number.isFinite(u) && Number.isFinite(v) ? { u, v } : null;
+    };
     let wind: Readout["wind"] = null;
-    const wf = this.windFrames ?? (this.shown?.layer.id === "wind" ? this.shown.frames : null);
-    if (wf) {
-      const [uv, vv] = this.windFrames ? this.windVars : WIND_VARS;
-      const a = wf.a.wind(lat, wrapped, uv, vv);
-      const b = wf.b ? wf.b.wind(lat, wrapped, uv, vv) : a;
-      const u = a.u + (b.u - a.u) * wf.t;
-      const v = a.v + (b.v - a.v) * wf.t;
-      if (Number.isFinite(u) && Number.isFinite(v)) {
-        wind = { speed: Math.hypot(u, v), direction: windDirection(u, v) };
-      }
+    let current: Readout["current"] = null;
+    if (this.shown?.layer.current && this.shown.layer.winds) {
+      // The colours are the current's u/v: read it as they are, finer where zoomed in (a tidal race
+      // is narrower than the particles' global grid).
+      const { frames, detail } = this.shown;
+      const [uv, vv] = this.shown.layer.winds;
+      const c = uvAt(detail && covers(detail.a, lat, wrapped) ? detail : frames, uv, vv);
+      if (c) current = { speed: Math.hypot(c.u, c.v), heading: ((((Math.atan2(c.u, c.v) * 180) / Math.PI) % 360) + 360) % 360 };
+    } else {
+      const wf = this.windFrames ?? (this.shown?.layer.id === "wind" ? this.shown.frames : null);
+      const w = wf ? uvAt(wf, ...(this.windFrames ? this.windVars : WIND_VARS)) : null;
+      if (w) wind = { speed: Math.hypot(w.u, w.v), direction: windDirection(w.u, w.v) };
     }
     const p = this.pressure?.sample("mslp", lat, wrapped);
-    return { lon: wrapped, lat, value, wind, wave, mslp: p !== undefined && Number.isFinite(p) ? p : null };
+    return { lon: wrapped, lat, value, wind, current, wave, mslp: p !== undefined && Number.isFinite(p) ? p : null };
   }
 
   destroy(): void {

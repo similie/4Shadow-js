@@ -17,9 +17,17 @@ export interface ColorLayerDef {
    * way its waves travel). Without it, the particles follow the wind.
    */
   flow?: { dir: string; period: string };
-  /** The eastward/northward wind the particles follow on this layer (default: the 10 m wind). */
+  /** The eastward/northward wind (or water) the particles follow on this layer (default: the 10 m wind). */
   winds?: [string, string];
+  /**
+   * The u/v pair is an ocean current: its particles move CURRENT_PACE times faster than the water so
+   * they visibly move, and the readout says where it flows to (wind says where it comes from).
+   */
+  current?: true;
 }
+
+/** How many times faster than the water current particles move (see ParticleFrames.pace). */
+export const CURRENT_PACE = 8;
 
 const WAVES = { dir: "wave_dir", period: "wave_period" };
 const SWELL = { dir: "swell_dir", period: "swell_period" };
@@ -54,6 +62,18 @@ export const COLOR_LAYERS: ColorLayerDef[] = [
     decimals: 0,
     icon: "⏱",
     flow: WAVES,
+  },
+  // Ocean currents, tides included: from an ocean model (Copernicus Marine), drawn over the weather model.
+  {
+    id: "currents",
+    label: "Currents",
+    vars: ["current_u", "current_v"],
+    legendVar: "current_speed",
+    tileVar: "current_speed",
+    decimals: 2,
+    icon: "⥂",
+    winds: ["current_u", "current_v"],
+    current: true,
   },
   { id: "feels_like", label: "Feels like", vars: ["feels_like"], legendVar: "feels_like", tileVar: "feels_like", decimals: 1, icon: "≃" },
   { id: "heat_index", label: "Heat index", vars: ["heat_index"], legendVar: "heat_index", tileVar: "heat_index", decimals: 1, icon: "☼" },

@@ -11,7 +11,7 @@
   import Search from "#lib/components/Search.svelte";
   import Timeline, { type TimelineMark } from "#lib/components/Timeline.svelte";
   import { API_URL, client, DIRECT } from "#lib/config.ts";
-  import { formatCoords, formatValue, formatWave, formatWind } from "#lib/format.ts";
+  import { formatCoords, formatCurrent, formatValue, formatWave, formatWind } from "#lib/format.ts";
   import { layersFor } from "#lib/weather/catalog.ts";
   import { WeatherMap, type Readout, type Status } from "#lib/weather/weather-map.ts";
 
@@ -464,6 +464,7 @@
           <span><b>{formatValue(readout.value, layer.decimals)}</b> {legendInfo.units}</span>
         {/if}
         {#if readout.wave}<span>{formatWave(readout.wave.direction, readout.wave.period)}</span>{/if}
+        {#if readout.current}<span class="strong">{formatCurrent(readout.current.speed, readout.current.heading)}</span>{/if}
         {#if readout.wind}<span class:strong={layer?.id === "wind"}>{formatWind(readout.wind.speed, readout.wind.direction)}</span>{/if}
         {#if readout.mslp !== null && isobarsOn && layer?.id !== "mslp"}<span>{readout.mslp.toFixed(0)} hPa</span>{/if}
       </div>

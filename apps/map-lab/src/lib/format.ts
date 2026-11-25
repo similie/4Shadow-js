@@ -36,6 +36,11 @@ export function formatWind(speed: number, direction: number): string {
   return `${speed.toFixed(1)} m/s ${compass(direction)}`;
 }
 
+/** A current's speed and where it flows to, e.g. "0.62 m/s to NE" (wind says where it comes from). */
+export function formatCurrent(speed: number, heading: number): string {
+  return `${speed.toFixed(2)} m/s to ${compass(heading)}`;
+}
+
 /** Where waves come from and how often they arrive, e.g. "from WSW · 9 s". */
 export function formatWave(direction: number, period: number): string {
   return `from ${compass(direction)} · ${period.toFixed(0)} s`;

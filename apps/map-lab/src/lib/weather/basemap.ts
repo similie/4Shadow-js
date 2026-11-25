@@ -36,6 +36,8 @@ export interface MapPalette {
   high: string;
   low: string;
   centreHalo: string;
+  /** Coastlines over the weather (RGB, 0 to 1, and opacity). */
+  coast: [number, number, number, number];
   /** Wind and wave particles (RGB, 0 to 1) and how strongly they're drawn. */
   particles: [number, number, number];
   particleOpacity: number;
@@ -61,6 +63,7 @@ export const PALETTES: Record<MapTheme, MapPalette> = {
     high: "#ffd6d6",
     low: "#d6e6ff",
     centreHalo: "rgba(0, 0, 0, 0.6)",
+    coast: [1, 1, 1, 0.8],
     particles: [1, 1, 1],
     particleOpacity: 0.9,
   },
@@ -83,6 +86,7 @@ export const PALETTES: Record<MapTheme, MapPalette> = {
     high: "#9b1c1c",
     low: "#1d4a9c",
     centreHalo: "rgba(255, 255, 255, 0.75)",
+    coast: [0.04, 0.04, 0.05, 0.65],
     particles: [0.12, 0.12, 0.15],
     particleOpacity: 0.5,
   },
@@ -126,7 +130,17 @@ export function basemapStyle(theme: MapTheme = "dark"): StyleSpecification {
     },
     layers: [
       { id: "background", type: "background", paint: { "background-color": "rgba(0, 0, 0, 0)" } },
-      { id: "water", type: "fill", source: SOURCE, "source-layer": "water", paint: {} },
+      // The open water: seas and lakes, not rivers, docks or pools. It is what sea-only layers (waves)
+      // are clipped to and what the coastlines trace (see SeaMask); rivers still show over the weather
+      // through "water-shade".
+      {
+        id: "water",
+        type: "fill",
+        source: SOURCE,
+        "source-layer": "water",
+        filter: ["match", ["get", "class"], ["river", "dock", "swimming_pool"], false, true],
+        paint: {},
+      },
       // Weather layers are inserted here.
       // Seas drawn again, translucent, over the weather: coasts show as a change in shade with no
       // tile seams (OpenStreetMap's water polygons are cut into squares, so outlines would show a grid).

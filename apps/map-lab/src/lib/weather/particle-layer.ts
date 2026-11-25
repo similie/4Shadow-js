@@ -12,6 +12,7 @@ import {
   toMercator,
   type Program,
 } from "./gl";
+import { SeaMask } from "./sea-mask";
 
 /** Floats per particle: position (mercator x, y), previous position, age in frames, speed in m/s. */
 const STRIDE = 6;
@@ -176,74 +177,6 @@ void main() {
   fragColor = texture(u_tex, v_uv) * u_opacity * sea;
 }`;
 
-/** Frames drawn so far (counted by the particle layer), so a stale sea mask is never used. */
-let frameCount = 0;
-
-/**
- * Where the basemap drew water, for sea-only particles (waves). Add it just before the weather,
- * where only the water is opaque yet (see basemap.ts): each frame it copies the screen so far,
- * whose alpha is then the sea, the same coastline the wave colours stop at.
- */
-export class SeaMask implements CustomLayerInterface {
-  readonly id: string;
-  readonly type = "custom" as const;
-  readonly renderingMode = "2d" as const;
-  /** Copy the water this frame; off when nothing needs it. */
-  enabled = false;
-  private texture: WebGLTexture | null = null;
-  private framebuffer: WebGLFramebuffer | null = null;
-  private size: [number, number] = [0, 0];
-  private frame = -1;
-
-  constructor(id = "weather-sea-mask") {
-    this.id = id;
-  }
-
-  onRemove(_map: MapLibreMap, gl: WebGL2RenderingContext): void {
-    if (this.texture) gl.deleteTexture(this.texture);
-    if (this.framebuffer) gl.deleteFramebuffer(this.framebuffer);
-    this.texture = null;
-    this.framebuffer = null;
-    this.size = [0, 0];
-  }
-
-  /** The water as of this frame, or null when it wasn't copied (then nothing is sea). */
-  current(frame: number): WebGLTexture | null {
-    return this.frame === frame ? this.texture : null;
-  }
-
-  render(gl: WebGL2RenderingContext): void {
-    if (!this.enabled) return;
-    const w = gl.drawingBufferWidth;
-    const h = gl.drawingBufferHeight;
-    if (!this.texture || this.size[0] !== w || this.size[1] !== h) {
-      if (this.texture) gl.deleteTexture(this.texture);
-      if (this.framebuffer) gl.deleteFramebuffer(this.framebuffer);
-      this.texture = gl.createTexture()!;
-      gl.bindTexture(gl.TEXTURE_2D, this.texture);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-      for (const p of [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.bindTexture(gl.TEXTURE_2D, null);
-      this.framebuffer = gl.createFramebuffer()!;
-      const target = gl.getParameter(gl.DRAW_FRAMEBUFFER_BINDING) as WebGLFramebuffer | null;
-      gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
-      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, target);
-      this.size = [w, h];
-    }
-    // A blit, not a copy: it also resolves the map's framebuffer if that is multisampled.
-    const target = gl.getParameter(gl.DRAW_FRAMEBUFFER_BINDING) as WebGLFramebuffer | null;
-    gl.disable(gl.SCISSOR_TEST);
-    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, target);
-    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, this.framebuffer);
-    gl.blitFramebuffer(0, 0, w, h, 0, 0, w, h, gl.COLOR_BUFFER_BIT, gl.NEAREST);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, target);
-    this.frame = frameCount;
-  }
-}
-
 export interface ParticleFrames {
   /** The same steps at a finer grid for part of the world (a `bbox` field), used where it covers. */
   detail?: FieldFrames | null;
@@ -303,8 +236,8 @@ export class ParticleLayer implements CustomLayerInterface {
   private detail: FieldFrames | null = null;
   private marine = false;
   private vars: [string, string] = ["u10", "v10"];
-  /** Add this layer just before the weather (see SeaMask); sea-only particles are clipped to it. */
-  readonly seaMask = new SeaMask();
+  /** Sea-only particles are clipped to it; add it to the map just before the weather (see SeaMask). */
+  readonly seaMask: SeaMask;
   private update: Program | null = null;
   private fade: Program | null = null;
   private composite: Program | null = null;
@@ -328,9 +261,10 @@ export class ParticleLayer implements CustomLayerInterface {
     this.reset = true;
   };
 
-  constructor(id = "weather-particles", options: Partial<ParticleOptions> = {}) {
+  constructor(id = "weather-particles", options: Partial<ParticleOptions> = {}, seaMask = new SeaMask()) {
     this.id = id;
     this.options = { ...DEFAULT_PARTICLES, ...options };
+    this.seaMask = seaMask;
   }
 
   /**
@@ -344,7 +278,7 @@ export class ParticleLayer implements CustomLayerInterface {
     this.frames = frames;
     this.detail = frames ? (opts.detail ?? null) : null;
     this.marine = marine;
-    this.seaMask.enabled = marine && this.options.opacity > 0;
+    this.seaMask.use(this.id, marine && this.options.opacity > 0);
     this.vars = vars;
     if (fresh) this.reset = true;
     this.map?.triggerRepaint();
@@ -352,7 +286,7 @@ export class ParticleLayer implements CustomLayerInterface {
 
   setOptions(options: Partial<ParticleOptions>): void {
     this.options = { ...this.options, ...options };
-    this.seaMask.enabled = this.marine && this.options.opacity > 0;
+    this.seaMask.use(this.id, this.marine && this.options.opacity > 0);
     this.map?.triggerRepaint();
   }
 
@@ -493,7 +427,6 @@ export class ParticleLayer implements CustomLayerInterface {
   }
 
   prerender(gl: WebGL2RenderingContext, args: CustomRenderMethodInput): void {
-    frameCount++;
     const { frames, map, textures, update, fade } = this;
     if (!frames || !map || !textures || !update || !fade || this.options.opacity <= 0) return;
     this.ensureParticles(gl);
@@ -596,7 +529,7 @@ export class ParticleLayer implements CustomLayerInterface {
     const { frames, map, composite } = this;
     if (!frames || !map || !composite || !this.targets.length || this.options.opacity <= 0) return;
     // Sea-only particles need this frame's water; without it (not copied yet) they wait a frame.
-    const sea = this.marine ? this.seaMask.current(frameCount) : null;
+    const sea = this.marine ? this.seaMask.current() : null;
     if (this.marine && !sea) {
       map.triggerRepaint();
       return;

@@ -11,6 +11,8 @@ Notable changes to the map lab and the repository. The SDK's changes, by version
 - **Air quality**: PM2.5, PM10, dust, smoke haze and haze from NOAA's GEFS-Aerosols, drawn over the chosen weather model's particles and isobars and blank outside the air-quality run's 5 days.
 - The map's attribution names the forecast models in view, in ECMWF's own words for its data (CC BY 4.0).
 - Fixed: wave particles stopped short of the coast along straight, stepped edges (the wave model's coarse coastline) and could cross onto land at capes. They now reach the basemap's coastline and stay on the water, like the wave colours: they use the same coastal fill, the full-resolution field when zoomed in, and the basemap's water as a mask.
+- **Coastlines** over the weather (on by default, with a Coastlines switch next to Isobars), so the coast stays visible under layers that colour land and sea alike. The line is traced from the basemap's own water at every zoom, on a flat map or a globe, white on the Night map and dark on the Day map.
+- Rivers, docks and pools no longer count as open water: wave colours and particles no longer run up rivers, and only seas and lakes get a coastline. Rivers still show over the weather.
 - Fire weather and soil moisture are drawn on land only, clipped to the basemap's coastline.
 - Fixed: the weather waited for the basemap. On a slow connection, or when OpenFreeMap was slow, the map stayed blank until every basemap tile in view had loaded, and if the basemap's tile index failed it never drew at all. The weather and early warnings are now drawn as soon as the map's style is read, and the basemap fills in when it arrives.
 - Hovering a layer in the menu says what it shows.

@@ -7,10 +7,12 @@ import { basemapPaint, basemapStyle, PALETTES, WEATHER_BEFORE, type MapTheme } f
 import { FieldCache, type FieldRequest } from "./cache";
 import { Crossfade } from "./crossfade";
 import { COLOR_LAYERS, servable, WIND_VARS, type ColorLayerDef } from "./catalog";
+import { CoastLayer } from "./coast-layer";
 import { creditFor } from "./credit";
 import { FieldLayer, type FieldFrames } from "./field-layer";
 import { IsobarJobs, type PressureMap } from "./isobar-jobs";
 import { ParticleLayer } from "./particle-layer";
+import { SeaMask } from "./sea-mask";
 import { waveFlow } from "./wave-flow";
 
 // MapLibre starts its worker from a file next to its own module, which bundlers move; say where it is.
@@ -78,7 +80,10 @@ export class WeatherMap {
   private readonly client: ForeshadowClient;
   private theme: MapTheme;
   private readonly fieldLayer: FieldLayer;
-  private readonly particleLayer = new ParticleLayer();
+  /** The basemap's water, copied each frame for the wave particles and the coastlines. */
+  private readonly seaMask = new SeaMask();
+  private readonly particleLayer = new ParticleLayer("weather-particles", {}, this.seaMask);
+  private readonly coastLayer = new CoastLayer(this.seaMask);
   private catalog = new Map<string, VariableInfo>();
   private run: RunDetail | null = null;
   private times: number[] = [];
@@ -113,6 +118,7 @@ export class WeatherMap {
   stride: number;
   particles = true;
   showIsobars = true;
+  showCoastlines = true;
   compare = false;
   opacity = 0.85;
   /** Told about loading and errors. */
@@ -126,6 +132,7 @@ export class WeatherMap {
     this.theme = options.theme ?? "dark";
     this.fieldLayer = new FieldLayer("weather-field", PALETTES[this.theme].land);
     this.particleLayer.setOptions({ color: PALETTES[this.theme].particles, opacity: PALETTES[this.theme].particleOpacity });
+    this.coastLayer.setColor(PALETTES[this.theme].coast);
     this.cache = new FieldCache(options.client);
     this.cache.onLoad = (err) => {
       this.status(err);
@@ -171,9 +178,10 @@ export class WeatherMap {
   private addLayers(): void {
     const map = this.map;
     // The sea mask first: it copies the water before any weather is drawn over it.
-    map.addLayer(this.particleLayer.seaMask, WEATHER_BEFORE);
+    map.addLayer(this.seaMask, WEATHER_BEFORE);
     map.addLayer(this.fieldLayer, WEATHER_BEFORE);
     map.addLayer(this.particleLayer, OVERLAY_BEFORE);
+    map.addLayer(this.coastLayer, OVERLAY_BEFORE);
     // Two copies of the isobars and H/L markers (see crossfade.ts). Their opacity changes every
     // frame, so no transitions; labels ignore each other's placement so the copies don't fight.
     const instant = { duration: 0, delay: 0 };
@@ -344,6 +352,12 @@ export class WeatherMap {
     this.refresh();
   }
 
+  /** Coastlines over the weather. */
+  setCoastlines(on: boolean): void {
+    this.showCoastlines = on;
+    this.coastLayer.setVisible(on);
+  }
+
   setCompare(on: boolean): void {
     this.compare = on;
     this.applyVisibility();
@@ -356,6 +370,7 @@ export class WeatherMap {
     this.theme = theme;
     this.fieldLayer.setLand(PALETTES[theme].land);
     this.particleLayer.setOptions({ color: PALETTES[theme].particles, opacity: PALETTES[theme].particleOpacity });
+    this.coastLayer.setColor(PALETTES[theme].coast);
     if (this.loaded) this.applyTheme();
   }
 

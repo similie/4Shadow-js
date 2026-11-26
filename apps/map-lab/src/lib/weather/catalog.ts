@@ -20,7 +20,7 @@ export interface ColorLayerDef {
   /** The eastward/northward wind (or water) the particles follow on this layer (default: the 10 m wind). */
   winds?: [string, string];
   /**
-   * The u/v pair is an ocean current: its particles move CURRENT_PACE times faster than the water so
+   * The particles' u/v pair is an ocean current: they move CURRENT_PACE times faster than the water so
    * they visibly move, and the readout says where it flows to (wind says where it comes from).
    */
   current?: true;
@@ -75,6 +75,18 @@ export const COLOR_LAYERS: ColorLayerDef[] = [
     tileVar: "current_speed",
     decimals: 2,
     icon: "⥂",
+    winds: ["current_u", "current_v"],
+    current: true,
+  },
+  // The tide's height from the same ocean model, with its currents (tidal currents included) as particles.
+  {
+    id: "tides",
+    label: "Tides",
+    vars: ["tide_height"],
+    legendVar: "tide_height",
+    tileVar: "tide_height",
+    decimals: 2,
+    icon: "⇅",
     winds: ["current_u", "current_v"],
     current: true,
   },

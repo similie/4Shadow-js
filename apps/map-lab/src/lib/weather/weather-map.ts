@@ -754,12 +754,15 @@ export class WeatherMap {
     };
     let wind: Readout["wind"] = null;
     let current: Readout["current"] = null;
-    if (this.shown?.layer.current && this.shown.layer.winds) {
-      // The colours are the current's u/v: read it as they are, finer where zoomed in (a tidal race
-      // is narrower than the particles' global grid).
-      const { frames, detail } = this.shown;
-      const [uv, vv] = this.shown.layer.winds;
-      const c = uvAt(detail && covers(detail.a, lat, wrapped) ? detail : frames, uv, vv);
+    const currents = this.shown?.layer.current ? this.shown.layer.winds : undefined;
+    if (this.shown && currents) {
+      // Where the colours are the current's u/v (Currents), read it as they are, finer where zoomed in
+      // (a tidal race is narrower than the particles' global grid); otherwise (Tides) from the particles'.
+      const { frames, detail, layer } = this.shown;
+      const [uv, vv] = currents;
+      const own = layer.vars.includes(uv);
+      const f = own ? (detail && covers(detail.a, lat, wrapped) ? detail : frames) : this.windFrames;
+      const c = f ? uvAt(f, uv, vv) : null;
       if (c) current = { speed: Math.hypot(c.u, c.v), heading: ((((Math.atan2(c.u, c.v) * 180) / Math.PI) % 360) + 360) % 360 };
     } else {
       const wf = this.windFrames ?? (this.shown?.layer.id === "wind" ? this.shown.frames : null);

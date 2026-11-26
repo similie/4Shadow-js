@@ -82,6 +82,8 @@
   );
   const layer = $derived(layers.find((l) => l.id === layerId) ?? null);
   const allVariables = $derived([...variables, ...overlays.flatMap((o) => o.variables)]);
+  /** The run with tides (the ocean model), whose high and low waters the point panel lists. */
+  const tideRun = $derived(overlays.find((o) => o.run.variables.includes("tide_height"))?.run);
   const legendInfo = $derived(layer ? allVariables.find((v) => v.id === layer.legendVar) : undefined);
   const initTime = $derived(run ? Date.parse(run.init_time) : 0);
 
@@ -371,7 +373,17 @@
       onClose={() => (alertsOpen = false)}
     />
   {:else if point}
-    <PointPanel lat={point.lat} lon={point.lon} place={point.place} model={run?.model} run={run?.run} {time} onClose={closePoint} onPick={seek} />
+    <PointPanel
+      lat={point.lat}
+      lon={point.lon}
+      place={point.place}
+      model={run?.model}
+      run={run?.run}
+      tides={tideRun ? { model: tideRun.model, run: tideRun.run } : undefined}
+      {time}
+      onClose={closePoint}
+      onPick={seek}
+    />
   {/if}
 </div>
 

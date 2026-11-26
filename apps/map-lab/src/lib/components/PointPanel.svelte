@@ -2,7 +2,7 @@
   import CloseButton from "#lib/components/CloseButton.svelte";
   import { compass, dailyRows, type Forecast, type Model, type Place } from "@similie/4shadow";
   import { client } from "#lib/config.ts";
-  import { formatCoords, formatTime } from "#lib/format.ts";
+  import { formatCoords, formatDay, formatHour, formatTime } from "#lib/format.ts";
   import Meteogram from "./Meteogram.svelte";
 
   let {
@@ -11,6 +11,7 @@
     place,
     model,
     run,
+    tides,
     time,
     onClose,
     onPick,
@@ -20,6 +21,8 @@
     place?: Place;
     model?: Model;
     run?: string;
+    /** A model and run with tides (the ocean model), for the high and low waters here. */
+    tides?: { model: Model; run: string };
     time: number;
     onClose: () => void;
     onPick: (ms: number) => void;
@@ -43,6 +46,25 @@
       .finally(() => (loading = false));
     return () => ctrl.abort();
   });
+
+  // The high and low waters for the next three days, from the model with tides. Its failure (or a point
+  // far from the sea) leaves the section out; the weather above doesn't depend on it.
+  let tideForecast = $state.raw<Forecast | null>(null);
+  $effect(() => {
+    tideForecast = null;
+    if (!tides) return;
+    const ctrl = new AbortController();
+    client
+      .forecast({ lat, lon }, { model: tides.model, run: tides.run, vars: ["tide_height"], hours: 72, daily: false, signal: ctrl.signal })
+      .then((f) => (tideForecast = f))
+      .catch(() => {});
+    return () => ctrl.abort();
+  });
+  const tideEvents = $derived(tideForecast?.tides ?? []);
+  const tideZone = $derived(tideForecast?.timezone.name);
+  const tideNow = $derived(tideForecast?.current?.tide_height);
+  const nextTide = $derived(tideEvents.find((e) => Date.parse(e.time) > Date.now()));
+  const metres = (h: number) => `${h > 0 ? "+" : h < 0 ? "−" : ""}${Math.abs(h).toFixed(2)} m`;
 
   const near = $derived(forecast?.location.nearest_place);
   const title = $derived(place?.display_name ?? (near ? near.display_name : formatCoords(lat, lon)));
@@ -130,6 +152,37 @@
     </div>
 
     <Meteogram {forecast} {time} {onPick} />
+
+    {#if tideEvents.length}
+      <section class="tides">
+        <h3>
+          Tides
+          {#if typeof tideNow === "number"}<span class="muted"
+              >now {metres(tideNow)}{nextTide ? (nextTide.type === "high" ? ", rising" : ", falling") : ""}</span
+            >{/if}
+        </h3>
+        <table class="num">
+          <tbody>
+            {#each tideEvents as e, i (e.time)}
+              {@const ms = Date.parse(e.time)}
+              {@const day = formatDay(ms, tideZone)}
+              <tr class:past={ms < Date.now()}>
+                <td>{i === 0 || formatDay(Date.parse(tideEvents[i - 1].time), tideZone) !== day ? day : ""}</td>
+                <td class="kind">{e.type === "high" ? "High" : "Low"}</td>
+                <td>{formatHour(ms, tideZone)}</td>
+                <td>{metres(e.height)}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+        <p class="muted small">
+          The astronomical tide (FES2014){tideForecast?.location.sea_point
+            ? ` at the sea ${tideForecast.location.sea_point.distance_km.toFixed(0)} km away`
+            : ""}, from mean sea level: tide tables measure from chart datum, so their heights differ by a constant. Less exact in harbours and
+          estuaries; not for navigation.
+        </p>
+      </section>
+    {/if}
 
     {#if days.length}
       <table class="daily num">
@@ -293,5 +346,24 @@
     max-height: 260px;
     overflow-y: auto;
     margin-top: 6px;
+  }
+  .tides {
+    margin-top: 10px;
+  }
+  .tides h3 {
+    margin: 0 0 4px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .tides h3 span {
+    margin-left: 6px;
+    font-weight: 400;
+    font-size: 12px;
+  }
+  .tides td.kind {
+    text-align: left;
+  }
+  .tides tr.past td {
+    color: var(--muted);
   }
 </style>

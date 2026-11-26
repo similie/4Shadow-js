@@ -42,8 +42,10 @@
 
   /** About `count` round tick values covering lo..hi. */
   function ticks(lo: number, hi: number, count = 3): number[] {
-    const span = Math.max(hi - lo, 1e-6);
-    const raw = span / count;
+    // A flat series, or a single step, still gets an axis: one unit either side. (A step too small to
+    // survive the rounding below gave equal ticks, and their keyed #each threw.)
+    if (!(hi - lo >= 1e-3)) [lo, hi] = [lo - 1, hi + 1];
+    const raw = (hi - lo) / count;
     const mag = Math.pow(10, Math.floor(Math.log10(raw)));
     const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? 10 * mag;
     const out: number[] = [];

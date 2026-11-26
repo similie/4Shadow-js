@@ -26,8 +26,11 @@ export interface ColorLayerDef {
   current?: true;
 }
 
-/** How many times faster than the water current particles move (see ParticleFrames.pace). */
-export const CURRENT_PACE = 8;
+/**
+ * How many times faster than the water current particles move (see ParticleFrames.pace). At 15,
+ * currents of 0.1 to 1 m/s move as wind particles do in winds of 1.5 to 15 m/s.
+ */
+export const CURRENT_PACE = 15;
 
 const WAVES = { dir: "wave_dir", period: "wave_period" };
 const SWELL = { dir: "swell_dir", period: "swell_period" };

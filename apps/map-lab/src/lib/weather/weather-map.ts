@@ -121,6 +121,8 @@ export class WeatherMap {
   private hoursPerSecond = 3;
   stride: number;
   particles = true;
+  /** How many times faster than the water current particles move. */
+  currentPace = CURRENT_PACE;
   showIsobars = true;
   showCoastlines = true;
   compare = false;
@@ -345,6 +347,12 @@ export class WeatherMap {
   setStride(stride: number): void {
     this.stride = stride;
     if (this.loaded) this.updateDetailBox();
+    this.refresh();
+  }
+
+  /** Current particles' speed, as a multiple of the water's (CURRENT_PACE by default). */
+  setCurrentPace(pace: number): void {
+    this.currentPace = pace;
     this.refresh();
   }
 
@@ -594,7 +602,7 @@ export class WeatherMap {
           this.windFrames = frames;
           this.windVars = winds;
           const fine = marine && this.detailBox ? this.framesFor(winds, 1, this.detailBox, mover) : null;
-          this.particleLayer.setFrames(frames, winds, { detail: fine, marine, pace: def?.current ? CURRENT_PACE : 1 });
+          this.particleLayer.setFrames(frames, winds, { detail: fine, marine, pace: def?.current ? this.currentPace : 1 });
         } else complete = false;
       } else {
         this.windFrames = null;

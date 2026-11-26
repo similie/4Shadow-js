@@ -74,6 +74,15 @@ export interface Daily {
   [summary: string]: Array<number | null> | string[];
 }
 
+/** A high or low water, from a model with tides (the ocean model's `tides`). */
+export interface TideEvent {
+  /** ISO 8601, UTC. Placed between the hours, so not on the hour. */
+  time: string;
+  type: "high" | "low";
+  /** Metres from mean sea level, not from the chart datum tide tables use. */
+  height: number;
+}
+
 export interface Forecast {
   model: Model;
   run: string;
@@ -86,6 +95,8 @@ export interface Forecast {
   timeseries: Timeseries;
   daily?: Daily;
   daily_units?: Record<string, string>;
+  /** The high and low waters within the timeseries' span, from a model with tides (the ocean model). */
+  tides?: TideEvent[];
   source: Record<string, unknown>;
 }
 

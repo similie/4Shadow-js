@@ -2,6 +2,10 @@
 
 This package follows [semantic versioning](https://semver.org). Until 1.0, a minor version may change the API; a patch never does.
 
+## Unreleased
+
+- `Forecast.tides` and `TideEvent`: the high and low waters from a model with tides (the 4Shadow API's `ocean` model), each with its time, `"high"` or `"low"`, and its height in metres from mean sea level.
+
 ## 0.2.0 (2026-11-16)
 
 A second model, NOAA's AI model AIGFS, next to GFS.

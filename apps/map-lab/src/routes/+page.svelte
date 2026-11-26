@@ -25,6 +25,8 @@
 
   let layerId: string | null = $state("wind");
   let particles = $state(true);
+  /** Current particles' speed, as a multiple of the water's. */
+  let currentPace = $state(CURRENT_PACE);
   let isobarsOn = $state(true);
   let coastlinesOn = $state(true);
   let compare = $state(false);
@@ -220,6 +222,7 @@
   // Push UI settings into the map.
   $effect(() => wm?.setLayer(layerId));
   $effect(() => wm?.setParticles(particles));
+  $effect(() => wm?.setCurrentPace(currentPace));
   $effect(() => wm?.setIsobars(isobarsOn));
   $effect(() => wm?.setCoastlines(coastlinesOn));
   $effect(() => wm?.setCompare(compare));
@@ -401,10 +404,15 @@
     title={layer?.flow
       ? "Particles travel with the waves, at their group speed"
       : layer?.current
-        ? `Particles travel with the surface current, tides included, ${CURRENT_PACE} times faster than the water`
+        ? `Particles travel with the surface current, tides included, ${currentPace} times faster than the water`
         : `Particles travel with the ${layer?.winds ? "100 m" : "10 m"} wind`}
     ><input type="checkbox" bind:checked={particles} /> {layer?.flow ? "Wave" : layer?.current ? "Current" : "Wind"} particles</label
   >
+  {#if layer?.current && particles}
+    <label class="pace" title="How many times faster than the water the particles move ({CURRENT_PACE} by default)"
+      >Speed <input type="range" min="1" max="30" step="1" bind:value={currentPace} /> <span>{currentPace}×</span></label
+    >
+  {/if}
   <label class="toggle"><input type="checkbox" bind:checked={isobarsOn} /> Isobars</label>
   <label class="toggle"><input type="checkbox" bind:checked={coastlinesOn} /> Coastlines</label>
   <label class="toggle"><input type="checkbox" bind:checked={globe} /> Globe</label>
@@ -646,6 +654,24 @@
   }
   .toggle input {
     accent-color: var(--accent);
+  }
+  .pace {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 8px 4px 32px;
+    font-size: 12px;
+    color: var(--text-2);
+  }
+  .pace input {
+    flex: 1;
+    min-width: 0;
+    accent-color: var(--accent);
+  }
+  .pace span {
+    width: 3ch;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
   }
   .layers .more {
     font-size: 12px;

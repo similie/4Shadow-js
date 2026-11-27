@@ -133,6 +133,8 @@ export interface VariablesResponse {
   title?: string;
   /** What the model is and how it differs from the others. */
   description?: string;
+  /** Observations, not a forecast (satellite imagery): each run is one hour observed, its only step. */
+  observed?: boolean;
   variables: VariableInfo[];
   daily: Array<{ id: string; source: string; aggregation: string; units: string }>;
 }
@@ -159,6 +161,11 @@ export interface RunDetail {
   valid_times: string[];
   variables: string[];
   source: Record<string, unknown>;
+  /**
+   * The run's grid: row 0's latitude and column 0's longitude, the spacing (degrees; rows run north to
+   * south) and the size. 0.25° for the weather models, 0.1° for satellite imagery. Absent from older servers.
+   */
+  grid?: { lat0: number; dlat: number; nlat: number; lon0: number; dlon: number; nlon: number };
 }
 
 export interface Health {

@@ -27,6 +27,16 @@ describe("layer catalog", () => {
   });
 });
 
+describe("satellite layers", () => {
+  it("draw the satellite's own variables, without particles", () => {
+    const sat = COLOR_LAYERS.filter((l) => l.still);
+    expect(sat.map((l) => l.id)).toEqual(["satellite", "sat_wv", "sat_vis"]);
+    for (const l of sat) expect([...l.vars, l.legendVar, l.tileVar].every((v) => v.startsWith("sat_"))).toBe(true);
+    // GFS's visibility ("vis") is another layer: a satellite run's variables never share its ids.
+    expect(COLOR_LAYERS.find((l) => l.id === "vis")?.vars).toEqual(["vis"]);
+  });
+});
+
 describe("layers a run can draw", () => {
   const v = (id: string, derived_from?: string[]) => ({ id, derived_from }) as VariableInfo;
   const catalog = [v("t2m"), v("rh2m"), v("refc"), v("wet_bulb", ["t2m", "rh2m"]), v("u10"), v("v10"), v("wind_speed", ["u10", "v10"])];

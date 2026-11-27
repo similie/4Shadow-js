@@ -4,6 +4,8 @@ This package follows [semantic versioning](https://semver.org). Until 1.0, a min
 
 ## Unreleased
 
+- `VariablesResponse.observed`: the model is observations, not a forecast (the 4Shadow API's `satellite` model, NOAA's hourly satellite mosaic): each run is one hour observed, its only step, so `runs()` lists the hours.
+- `RunDetail.grid`: the run's grid (first row and column, spacing, size), so a client can size `field()` strides on a grid finer than 0.25°.
 - `Forecast.tides` and `TideEvent`: the high and low waters from a model with tides (the 4Shadow API's `ocean` model), each with its time, `"high"` or `"low"`, and its height in metres from mean sea level.
 
 ## 0.2.0 (2026-11-16)

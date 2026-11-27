@@ -24,6 +24,8 @@ export interface ColorLayerDef {
    * they visibly move, and the readout says where it flows to (wind says where it comes from).
    */
   current?: true;
+  /** No particles: the picture as observed (satellite imagery). */
+  still?: true;
 }
 
 /**
@@ -134,6 +136,29 @@ export const COLOR_LAYERS: ColorLayerDef[] = [
   { id: "dust", label: "Dust", vars: ["dust"], legendVar: "dust", tileVar: "dust", decimals: 0, icon: "∴" },
   { id: "smoke_aod", label: "Smoke haze", vars: ["smoke_aod"], legendVar: "smoke_aod", tileVar: "smoke_aod", decimals: 2, icon: "≀" },
   { id: "aod", label: "Haze", vars: ["aod"], legendVar: "aod", tileVar: "aod", decimals: 2, icon: "◑" },
+  // Satellite imagery: observed, not forecast (NOAA's hourly mosaic of the geostationary satellites). Its
+  // layers put the ruler on the hours observed, without particles, so the clouds show as they are.
+  { id: "satellite", label: "Satellite", vars: ["sat_ir"], legendVar: "sat_ir", tileVar: "sat_ir", decimals: 0, icon: "◒", still: true },
+  {
+    id: "sat_wv",
+    label: "Satellite vapour",
+    vars: ["sat_wv"],
+    legendVar: "sat_wv",
+    tileVar: "sat_wv",
+    decimals: 0,
+    icon: "∽",
+    still: true,
+  },
+  {
+    id: "sat_vis",
+    label: "Satellite visible",
+    vars: ["sat_vis"],
+    legendVar: "sat_vis",
+    tileVar: "sat_vis",
+    decimals: 0,
+    icon: "◓",
+    still: true,
+  },
 ];
 
 export const WIND_VARS: [string, string] = ["u10", "v10"];

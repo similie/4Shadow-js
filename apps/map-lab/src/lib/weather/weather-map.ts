@@ -1,4 +1,4 @@
-import { windDirection, type Field, type ForeshadowClient, type RunDetail, type VariableInfo } from "@similie/4shadow";
+import { windDirection, type Field, type ForeshadowClient, type RunDetail, type RunSummary, type VariableInfo } from "@similie/4shadow";
 import type { FeatureCollection } from "geojson";
 import * as maplibregl from "maplibre-gl";
 import type { GeoJSONSource, Map as MapLibreMap, RasterTileSource } from "maplibre-gl";
@@ -14,6 +14,7 @@ import { IsobarJobs, type PressureMap } from "./isobar-jobs";
 import { ParticleLayer } from "./particle-layer";
 import { SeaMask } from "./sea-mask";
 import { SeaShadeLayer } from "./sea-shade";
+import { DETAIL_MAX_CELLS, strideFor } from "./stride";
 import { waveFlow } from "./wave-flow";
 
 // MapLibre starts its worker from a file next to its own module, which bundlers move; say where it is.
@@ -24,8 +25,6 @@ const OVERLAY_BEFORE = "water-name";
 const ISOBAR_STRIDE = 4;
 /** From this zoom, fetch the area in view at full resolution too (when the global grid is coarser). */
 const DETAIL_MIN_ZOOM = 3;
-/** Largest detail request, in 0.25° cells: a quarter of the globe. */
-const DETAIL_MAX_CELLS = (1440 * 721) / 4;
 const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] };
 /** Steps to fetch ahead of the one in view while playing. */
 const PLAY_AHEAD = 4;
@@ -72,9 +71,15 @@ export interface WeatherMapOptions {
  * run's particles and isobars, or bring their own particles (currents).
  */
 interface Source {
+  /** The run, or for observations the newest hour's. */
   run: RunDetail;
   times: number[];
   catalog: Map<string, VariableInfo>;
+  /**
+   * Observations (satellite imagery): each time is its own run of one step, named here. The ruler shows
+   * these hours while one of the source's layers is on.
+   */
+  runs?: string[];
 }
 
 export class WeatherMap {
@@ -131,6 +136,9 @@ export class WeatherMap {
   onStatus: ((s: Status) => void) | null = null;
   /** Told when playback moves the time. */
   onTime: ((ms: number) => void) | null = null;
+  /** Told when the ruler's steps change: a new run, a new satellite hour, or a switch to or from observations. */
+  onTimeline: ((steps: number[]) => void) | null = null;
+  private timelineKey = "";
 
   constructor(options: WeatherMapOptions) {
     this.client = options.client;
@@ -275,6 +283,7 @@ export class WeatherMap {
     this.times = run.valid_times.map((t) => Date.parse(t));
     this.time = this.clampTime(this.time || Date.now());
     if (!this.mainServes(["mslp"])) this.pressure = null;
+    this.timelineChanged();
     this.applyVisibility();
     this.refresh();
   }
@@ -283,14 +292,18 @@ export class WeatherMap {
    * Other models whose colour layers the map can draw (air quality and ocean currents, which have no
    * wind or pressure of their own): a layer the main run can't serve comes from the first of these that
    * can, and so do its particles when the layer names its own u/v (currents). Its frames follow the
-   * main timeline; outside the overlay's own steps the layer is left blank.
+   * main timeline; outside the overlay's own steps the layer is left blank. Observations (satellite
+   * imagery) come with their hours' `runs`: their layers bring a ruler of their own, the last hours
+   * observed.
    */
-  setOverlays(list: Array<{ run: RunDetail; variables: VariableInfo[] }>): void {
-    this.overlays = list.map(({ run, variables }) => ({
-      run,
-      times: run.valid_times.map((t) => Date.parse(t)),
-      catalog: new Map(variables.map((v) => [v.id, v])),
-    }));
+  setOverlays(list: Array<{ run: RunDetail; variables: VariableInfo[]; runs?: RunSummary[] }>): void {
+    this.overlays = list.map(({ run, variables, runs }) => {
+      const catalog = new Map(variables.map((v) => [v.id, v]));
+      if (!runs?.length) return { run, times: run.valid_times.map((t) => Date.parse(t)), catalog };
+      const hours = [...runs].sort((a, b) => Date.parse(a.init_time) - Date.parse(b.init_time));
+      return { run, times: hours.map((r) => Date.parse(r.init_time)), catalog, runs: hours.map((r) => r.run) };
+    });
+    this.timelineChanged();
     this.refresh();
   }
 
@@ -317,12 +330,36 @@ export class WeatherMap {
     return this.overlays.find((o) => this.serves(o, ids)) ?? null;
   }
 
-  get timeRange(): [number, number] {
-    return [this.times[0] ?? 0, this.times[this.times.length - 1] ?? 0];
+  /** The source of the layer on, when it's observations (satellite imagery). */
+  private observed(): Source | null {
+    const src = this.layer ? this.sourceFor(this.layer) : null;
+    return src?.runs ? src : null;
   }
 
+  /** Whether the ruler shows hours observed (a satellite layer) rather than the forecast's. */
+  get observing(): boolean {
+    return !!this.observed();
+  }
+
+  get timeRange(): [number, number] {
+    const steps = this.steps;
+    return [steps[0] ?? 0, steps[steps.length - 1] ?? 0];
+  }
+
+  /** The ruler's steps: the forecast's, or on a satellite layer the hours observed. */
   get steps(): number[] {
-    return this.times;
+    return this.observed()?.times ?? this.times;
+  }
+
+  /** Keep the time on the ruler, and tell the page, when its steps change. */
+  private timelineChanged(): void {
+    const steps = this.steps;
+    const key = `${this.observing}:${steps[0]}:${steps.length}:${steps[steps.length - 1]}`;
+    if (key === this.timelineKey) return;
+    this.timelineKey = key;
+    this.time = this.clampTime(this.time);
+    this.onTimeline?.(steps);
+    this.onTime?.(this.time);
   }
 
   get currentTime(): number {
@@ -340,7 +377,11 @@ export class WeatherMap {
   }
 
   setLayer(id: string | null): void {
+    const was = this.observing;
     this.layer = id ? (COLOR_LAYERS.find((l) => l.id === id) ?? null) : null;
+    // Between forecast and observations: to now, or the newest image.
+    if (this.observing !== was) this.time = this.clampTime(this.observing ? Infinity : Date.now());
+    this.timelineChanged();
     this.refresh();
   }
 
@@ -486,7 +527,9 @@ export class WeatherMap {
   }
 
   private request(src: Source, vars: string[], index: number, stride: number, bbox?: FieldRequest["bbox"]): FieldRequest {
-    return { model: src.run.model, run: src.run.run, hour: src.run.forecast_hours[index]!, vars, stride, bbox };
+    const run = src.runs ? src.runs[index]! : src.run.run;
+    const hour = src.runs ? 0 : src.run.forecast_hours[index]!;
+    return { model: src.run.model, run, hour, vars, stride: strideFor(src.run, stride, bbox), bbox };
   }
 
   /** The two steps' fields for these variables if loaded (loading them, and a few ahead, if not). */
@@ -570,6 +613,9 @@ export class WeatherMap {
     }
     this.fieldLayer.setOpacity(this.compare ? 0 : this.opacity);
 
+    // On a satellite layer the weather run's wind and isobars show only for the hours it covers.
+    const weatherAt = !this.observing || !!this.bracket(this.times, false);
+
     // Particles: on wave layers they travel with the waves, otherwise with the wind.
     const flow = def?.flow;
     if (flow) {
@@ -593,7 +639,15 @@ export class WeatherMap {
       this.flowFrames = null;
       const winds = def?.winds ?? WIND_VARS;
       // The weather run's wind, or the motion a layer's overlay run brings (ocean currents) while in range.
-      const mover = this.mainServes(winds) ? this.main() : def?.winds && src && inRange && this.serves(src, winds) ? src : null;
+      const mover = def?.still
+        ? null
+        : this.mainServes(winds)
+          ? weatherAt
+            ? this.main()
+            : null
+          : def?.winds && src && inRange && this.serves(src, winds)
+            ? src
+            : null;
       if (this.particles && mover) {
         const frames = this.framesFor(winds, this.stride, undefined, mover);
         // Sea-only motion stops at the basemap's coast, as wave particles do.
@@ -613,7 +667,12 @@ export class WeatherMap {
 
     // Isobars and H/L on a 1° grid: the two steps around the time, crossfaded. Their contours
     // are computed in a worker as soon as each step's field arrives.
-    if (this.showIsobars && this.mainServes(["mslp"])) {
+    if (this.showIsobars && this.mainServes(["mslp"]) && !weatherAt) {
+      for (const slot of SLOTS) {
+        for (const id of ISOBAR_LAYERS) this.paint(`${id}-${slot}`, id === "isobar-lines" ? "line-opacity" : "text-opacity", 0);
+      }
+      this.pressure = null;
+    } else if (this.showIsobars && this.mainServes(["mslp"])) {
       const frames = this.framesFor(["mslp"], ISOBAR_STRIDE);
       for (const f of this.loadedAhead(["mslp"], ISOBAR_STRIDE)) this.isobarJobs.request(f);
       const b = frames ? (frames.b ?? frames.a) : null;
@@ -641,7 +700,13 @@ export class WeatherMap {
     const b = src ? this.bracket(src.times, src.run === this.run) : null;
     if (this.compare && def && src && b) {
       const run = src.run;
-      const url = (k: number) => this.client.tileUrl({ variable: def.tileVar, time: run.forecast_hours[k]!, run: run.run, model: run.model });
+      const url = (k: number) =>
+        this.client.tileUrl({
+          variable: def.tileVar,
+          time: src.runs ? 0 : run.forecast_hours[k]!,
+          run: src.runs ? src.runs[k]! : run.run,
+          model: run.model,
+        });
       const [ua, ub] = [url(b.ia), url(b.ib)];
       this.setTileOpacity(this.tileFade.show(ua, ua, ub, ub, b.t));
       for (const u of new Set([ua, ub])) {

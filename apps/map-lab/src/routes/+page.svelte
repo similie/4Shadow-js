@@ -47,13 +47,16 @@
    */
   let model = $state<Model>("gfs");
   let models = $state.raw<Array<{ id: Model; title: string; description: string }>>([]);
-  let overlays = $state.raw<Array<{ run: RunDetail; variables: VariableInfo[]; title: string }>>([]);
+  /** Other models drawn over the weather: air quality, the ocean, and satellite imagery (with its hours). */
+  let overlays = $state.raw<Array<{ run: RunDetail; variables: VariableInfo[]; title: string; runs?: RunSummary[] }>>([]);
   let searched = false;
 
   let run = $state.raw<RunDetail | null>(null);
   let runs: RunSummary[] = $state.raw([]);
   let variables: VariableInfo[] = $state.raw([]);
   let steps: number[] = $state.raw([]);
+  /** The ruler shows hours observed (a satellite layer) rather than the forecast's. */
+  let observing = $state(false);
   let time = $state(0);
   let playing = $state(false);
   let status: Status = $state({ loading: 0, error: null });
@@ -91,6 +94,11 @@
     const w = new WeatherMap({ container, client, stride });
     w.onStatus = (s) => (status = s);
     w.onTime = (ms) => (time = ms);
+    w.onTimeline = (ts) => {
+      steps = ts;
+      observing = w.observing;
+      time = w.currentTime;
+    };
     w.map.on("mousemove", (e) => (readout = w.readout(e.lngLat.lng, e.lngLat.lat)));
     w.map.on("mouseout", () => (readout = null));
     const al = new AlertLayers(w.map);
@@ -178,7 +186,7 @@
       await Promise.all(
         ids.map((id) =>
           Promise.all([client.variables(id), client.runs(id)])
-            .then(([v, r]) => (r.latest ? { id, vars: v, latest: r.latest } : null))
+            .then(([v, r]) => (r.latest ? { id, vars: v, latest: r.latest, runs: r.runs } : null))
             .catch(() => null),
         ),
       )
@@ -193,7 +201,8 @@
         .map((m) =>
           client
             .run(m.latest, m.id)
-            .then((run) => ({ run, variables: m.vars.variables, title: m.vars.title ?? m.id }))
+            // Observations (satellite imagery): every hour is a run, so the map gets the list of them.
+            .then((run) => ({ run, variables: m.vars.variables, title: m.vars.title ?? m.id, runs: m.vars.observed ? m.runs : undefined }))
             .catch(() => null),
         ),
     );
@@ -216,8 +225,9 @@
       layerId = "wind";
       wm?.setLayer(layerId);
     }
-    steps = r.valid_times.map((t) => Date.parse(t));
     wm?.setRun(r);
+    // The run's steps, or the hours observed while a satellite layer is on.
+    steps = wm?.steps ?? r.valid_times.map((t) => Date.parse(t));
     time = wm?.currentTime ?? steps[0] ?? 0;
   }
 
@@ -493,7 +503,7 @@
     {/if}
   </div>
   {#if steps.length}
-    <Timeline {steps} {time} {initTime} {playing} {marks} loading={status.loading > 0} onSeek={seek} onToggle={togglePlay} />
+    <Timeline {steps} {time} {initTime} observed={observing} {playing} {marks} loading={status.loading > 0} onSeek={seek} onToggle={togglePlay} />
   {/if}
 </div>
 

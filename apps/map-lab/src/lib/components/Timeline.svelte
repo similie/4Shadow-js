@@ -17,6 +17,7 @@
     steps,
     time,
     initTime,
+    observed = false,
     playing,
     loading,
     onSeek,
@@ -26,6 +27,8 @@
     steps: number[];
     time: number;
     initTime: number;
+    /** The steps are hours observed (satellite imagery): say how long ago, not how far into the run. */
+    observed?: boolean;
     playing: boolean;
     loading: boolean;
     onSeek: (ms: number) => void;
@@ -65,6 +68,7 @@
 
   const now = Date.now();
   const leadHours = $derived(Math.round((time - initTime) / 3_600_000));
+  const agoHours = $derived(Math.max(0, Math.round((now - time) / 3_600_000)));
 
   function timeAt(clientX: number): number {
     const r = track!.getBoundingClientRect();
@@ -107,7 +111,7 @@
   <div class="when">
     <div class="local num">{steps.length ? formatTime(time) : "–"}</div>
     <div class="sub num">
-      {steps.length ? `${formatUtc(time)} · +${leadHours} h` : ""}
+      {steps.length ? `${formatUtc(time)} · ${observed ? `observed ${agoHours} h ago` : `+${leadHours} h`}` : ""}
       {#if loading}<span class="dot" title="Loading data"></span>{/if}
     </div>
   </div>

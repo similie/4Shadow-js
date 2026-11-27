@@ -62,4 +62,13 @@ describe("layers a run can draw", () => {
     expect(ids).not.toContain("pm10");
     expect(ids.indexOf("pm25")).toBeGreaterThan(ids.indexOf("t2m")); // menu order stays the catalog's
   });
+
+  it("offers CAMS's index and gases, and its particles where it's the only air-quality model", () => {
+    const gas = ["aqi", "no2", "o3", "co", "so2"];
+    const cams = { catalog: [...gas, "pm25", "pm10"].map((id) => v(id)), stored: [...gas, "pm25", "pm10"] };
+    const ids = layersFor(catalog, ["t2m", "rh2m", "u10", "v10"], [cams]).map((l) => l.id);
+    expect(ids).toEqual(expect.arrayContaining([...gas, "pm25", "pm10"]));
+    expect(ids).not.toContain("aod");
+    for (const id of gas) expect(COLOR_LAYERS.find((l) => l.id === id)?.vars).toEqual([id]);
+  });
 });

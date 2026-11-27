@@ -130,9 +130,16 @@ export const COLOR_LAYERS: ColorLayerDef[] = [
     decimals: 2,
     icon: "▤",
   },
-  // Air quality: from an air-quality model (NOAA GEFS-Aerosols), drawn over the weather model's wind.
+  // Air quality: from the air-quality models, drawn over the weather model's wind. The index and the gases
+  // come from CAMS (Copernicus's global forecast); the particles and haze from NOAA's GEFS-Aerosols, or from
+  // CAMS where it's the only one (a layer comes from the first model that has it).
+  { id: "aqi", label: "Air quality index", vars: ["aqi"], legendVar: "aqi", tileVar: "aqi", decimals: 0, icon: "✦" },
   { id: "pm25", label: "PM2.5", vars: ["pm25"], legendVar: "pm25", tileVar: "pm25", decimals: 0, icon: "⁘" },
   { id: "pm10", label: "PM10", vars: ["pm10"], legendVar: "pm10", tileVar: "pm10", decimals: 0, icon: "⁙" },
+  { id: "no2", label: "Nitrogen dioxide", vars: ["no2"], legendVar: "no2", tileVar: "no2", decimals: 1, icon: "⋯" },
+  { id: "o3", label: "Ozone", vars: ["o3"], legendVar: "o3", tileVar: "o3", decimals: 0, icon: "⊙" },
+  { id: "co", label: "Carbon monoxide", vars: ["co"], legendVar: "co", tileVar: "co", decimals: 0, icon: "⊛" },
+  { id: "so2", label: "Sulphur dioxide", vars: ["so2"], legendVar: "so2", tileVar: "so2", decimals: 1, icon: "⋮" },
   { id: "dust", label: "Dust", vars: ["dust"], legendVar: "dust", tileVar: "dust", decimals: 0, icon: "∴" },
   { id: "smoke_aod", label: "Smoke haze", vars: ["smoke_aod"], legendVar: "smoke_aod", tileVar: "smoke_aod", decimals: 2, icon: "≀" },
   { id: "aod", label: "Haze", vars: ["aod"], legendVar: "aod", tileVar: "aod", decimals: 2, icon: "◑" },
